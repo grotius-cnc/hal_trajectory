@@ -1,5 +1,0 @@
-recursive-include cmake *
-recursive-include include *
-recursive-include src *
-
-include CMakeLists.txt
