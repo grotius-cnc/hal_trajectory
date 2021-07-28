@@ -1,0 +1,10 @@
+/home/user/Desktop/Linux-Embedded/linux-hal/halcompile-trajectory-ruckig/ruckig/build/CMakeFiles/install/strip.dir
+/home/user/Desktop/Linux-Embedded/linux-hal/halcompile-trajectory-ruckig/ruckig/build/CMakeFiles/install/local.dir
+/home/user/Desktop/Linux-Embedded/linux-hal/halcompile-trajectory-ruckig/ruckig/build/CMakeFiles/install.dir
+/home/user/Desktop/Linux-Embedded/linux-hal/halcompile-trajectory-ruckig/ruckig/build/CMakeFiles/list_install_components.dir
+/home/user/Desktop/Linux-Embedded/linux-hal/halcompile-trajectory-ruckig/ruckig/build/CMakeFiles/rebuild_cache.dir
+/home/user/Desktop/Linux-Embedded/linux-hal/halcompile-trajectory-ruckig/ruckig/build/CMakeFiles/edit_cache.dir
+/home/user/Desktop/Linux-Embedded/linux-hal/halcompile-trajectory-ruckig/ruckig/build/CMakeFiles/test.dir
+/home/user/Desktop/Linux-Embedded/linux-hal/halcompile-trajectory-ruckig/ruckig/build/CMakeFiles/otg-test.dir
+/home/user/Desktop/Linux-Embedded/linux-hal/halcompile-trajectory-ruckig/ruckig/build/CMakeFiles/example-position.dir
+/home/user/Desktop/Linux-Embedded/linux-hal/halcompile-trajectory-ruckig/ruckig/build/CMakeFiles/ruckig.dir
