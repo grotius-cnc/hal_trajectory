@@ -35,15 +35,15 @@ cd $LINUXCNC_DIR/scripts && . ./rip-environment
         halcmd addf read servo-thread
         halcmd addf write servo-thread
 
-
+        halcmd \-f $C_PROJECT_DIR/trajectory.hal
 
         # start hal.
         halcmd start
 
  	# Start hal programs to debug:
         #halmeter
-        halshow
-	#halscope 
+        # halshow
+        halscope
 	
 	# Unload rt components and clean up hal:
 	halrun -U

@@ -52,3 +52,4 @@ ai.h
 halmodule.c
 halmodule.h
 runtest
+trajectory.hal
