@@ -20,16 +20,27 @@ struct data {
     double target_acceleration[6];
 };
 
+struct pos {
+    double position[6];
+    double velocity[6];
+    double acceleration[6];
+};
+
 class CPP_INTERFACE_EXPORT Cpp_interface
 {
 public:
     Cpp_interface();
 
-    void calculate(data d);
+    void example(data d);
+    void trajectory_init(data d);
+    double trajectory_time();
+    pos trajectory_at_time(double at_time);
 
     // C module functions:
-    void function(struct data d);
-
+    void wrapper_example(struct data d);
+    void wrapper_trajectory_init(struct data d);
+    double wrapper_trajectory_time();
+    pos wrapper_trajectory_at_time(double at_time);
 
 };
 
