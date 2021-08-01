@@ -83,6 +83,7 @@ int rtapi_app_main(void) {
     *max_velocity->Pin=5000;
     *max_acceleration->Pin=3000;
     *max_jerk->Pin=500;
+    *enable->Pin=1;
 
     // Load a sample gcode.
     wrapper_load_gcode();

@@ -20,8 +20,7 @@ cp -rf $C_PROJECT_DIR/trajectory.so $LINUXCNC_RT_DIR	# Copy new component .so fi
 sudo ldconfig \
 /home/user/Desktop/Linux-Embedded/linux-hal/halcompile-trajectory-ruckig/build-cpp_interface-Desktop-Release \
 /home/user/Desktop/Linux-Embedded/linux-hal/halcompile-trajectory-ruckig/cpp_interface/ruckig/build \
-
-# sudo ldconfig /opt/linuxcnc/rtlib
+/opt/linuxcnc/rtlib \
 
 cd $LINUXCNC_DIR/scripts && . ./rip-environment
 	
@@ -32,18 +31,34 @@ cd $LINUXCNC_DIR/scripts && . ./rip-environment
         halcmd loadrt threads name1=base-thread fp1=0 period1=25000 name2=servo-thread period2=1000000
 
         halcmd loadrt trajectory
-        halcmd addf read servo-thread
-        halcmd addf write servo-thread
+        ########### Section opencascade + kinematics ############
+        # Load the kuka model:
+        #halcmd loadrt opencascade stepfilepath=/home/user/Desktop/Linux-Embedded/linux-hal/halcompile-opencascade/machines/kuka_kr_6_10_agilus display_hz=60
+        # Load the mitsubishi model:
+        halcmd loadrt opencascade stepfilepath=/home/user/Desktop/Linux-Embedded/linux-hal/halcompile-opencascade/machines/mitsubishi_rv_6sdl display_hz=60
+        halcmd loadrt kinematic
 
-        halcmd \-f $C_PROJECT_DIR/trajectory.hal
+        halcmd addf read servo-thread
+        halcmd addf opencascade servo-thread
+        halcmd addf kinematic servo-thread
+
+        # Load the kuka params:
+        #halcmd -f /home/user/Desktop/Linux-Embedded/linux-hal/halcompile-opencascade/machines/kuka_kr_6_10_agilus/kuka_kr_6_10_agilus.hal
+        # Load the mitsubishi params:
+        halcmd -f /home/user/Desktop/Linux-Embedded/linux-hal/halcompile-opencascade/machines/mitsubishi_rv_6sdl/mitsubishi_rv_6sdl.hal
+
+        # Link (net) kinematic results to opencascade.
+        halcmd -f /home/user/Desktop/Linux-Embedded/linux-hal/halcompile-opencascade/c-project/link.hal
+
+        halcmd -f $C_PROJECT_DIR/trajectory.hal
 
         # start hal.
         halcmd start
 
  	# Start hal programs to debug:
-        #halmeter
-        # halshow
-        halscope
+        # halmeter
+         halshow
+        # halscope
 	
 	# Unload rt components and clean up hal:
 	halrun -U

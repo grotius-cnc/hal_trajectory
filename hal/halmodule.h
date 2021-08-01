@@ -4,29 +4,18 @@
 #include <stdio.h>
 #include <stdbool.h>
 
-// In the makefile the external so lib has to be present with -L/path -llibname
-struct data {
-    double max_velocity[6];
-    double max_acceleration[6];
-    double max_jerk[6];
-    double current_position[6];
-    double current_velocity[6];
-    double current_acceleration[6];
-    double target_position[6];
-    double target_velocity[6];
-    double target_acceleration[6];
+//! A struct that represent a 3d point.
+struct POINT {
+double x,y,z;
 };
 
-struct pos {
-    double position[6];
-    double velocity[6];
-    double acceleration[6];
+struct TCP {
+    struct POINT p;
+    double vel,acc,jerk;
 };
 
 // C module functions:
-extern void wrapper_example(struct data d);
-extern void wrapper_trajectory_init(struct data d);
-extern double wrapper_trajectory_time();
-extern struct pos wrapper_trajectory_at_time(double at_time);
+extern void wrapper_load_gcode();
+extern struct TCP wrapper_trajectory(double vel, double acc, double jerk, unsigned int startfromblock, double tcp_x, double tcp_y, double tcp_z);
 
 #endif // HALMODULE_H

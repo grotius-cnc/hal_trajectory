@@ -1,60 +1,8 @@
 
-setp max_velocity_0          2.0
-setp max_acceleration_0      1.0
-setp max_jerk_0              4.0
-setp current_position_0      0.0
-setp current_velocity_0      0.0
-setp current_acceleration_0  0.0
-setp target_position_0       10.0
-setp target_velocity_0       0.0
-setp target_acceleration_0   0.0
+# setp kinematic.perform-fk 0
+# setp kinematic.perform-ik 1
 
-setp max_velocity_1          2.0
-setp max_acceleration_1      1.0
-setp max_jerk_1              4.0
-setp current_position_1      0.0
-setp current_velocity_1      0.0
-setp current_acceleration_1  0.0
-setp target_position_1       5.0
-setp target_velocity_1       0.0
-setp target_acceleration_1   0.0
+net net_cart_x_in tcp_x kinematic.pin-cartx-in
+net net_cart_y_in tcp_y kinematic.pin-carty-in
+net net_cart_z_in tcp_z kinematic.pin-cartz-in
 
-setp max_velocity_2          2.0
-setp max_acceleration_2      1.0
-setp max_jerk_2              4.0
-setp current_position_2      0.0
-setp current_velocity_2      0.0
-setp current_acceleration_2  0.0
-setp target_position_2       5.0
-setp target_velocity_2       0.0
-setp target_acceleration_2   0.0
-
-setp max_velocity_3          2.0
-setp max_acceleration_3      1.0
-setp max_jerk_3              4.0
-setp current_position_3      0.0
-setp current_velocity_3      0.0
-setp current_acceleration_3  0.0
-setp target_position_3       5.0
-setp target_velocity_3       0.0
-setp target_acceleration_3   0.0
-
-setp max_velocity_4          2.0
-setp max_acceleration_4      1.0
-setp max_jerk_4              4.0
-setp current_position_4      0.0
-setp current_velocity_4      0.0
-setp current_acceleration_4  0.0
-setp target_position_4       5.0
-setp target_velocity_4       0.0
-setp target_acceleration_4   0.0
-
-setp max_velocity_5          2.0
-setp max_acceleration_5      1.0
-setp max_jerk_5              4.0
-setp current_position_5      0.0
-setp current_velocity_5      0.0
-setp current_acceleration_5  0.0
-setp target_position_5       5.0
-setp target_velocity_5       0.0
-setp target_acceleration_5   0.0
