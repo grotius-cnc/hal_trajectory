@@ -63,5 +63,8 @@ cd $LINUXCNC_DIR/scripts && . ./rip-environment
 	# Unload rt components and clean up hal:
 	halrun -U
 
-
+# commands to test the program, in halshow :
+# setp kinematic.perform-fk 0
+# setp kinematic.perform-ik 1
+# setp max_velocity 2000
 

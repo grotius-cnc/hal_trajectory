@@ -65,9 +65,7 @@ param_bit_data_t *dummy;
 static int comp_idx; /* component ID */
 struct TCP tcp;
 
-static void test();
-static void read();
-static void write();
+static void trajectory();
 static int setup_pins();
 
 int rtapi_app_main(void) {
@@ -75,14 +73,14 @@ int rtapi_app_main(void) {
     int r = 0;
     comp_idx = hal_init("trajectory");
     if(comp_idx < 0) return comp_idx;
-    r = hal_export_funct("read", read, &skynet,0,0,comp_idx);
-    r = hal_export_funct("write", write, &skynet,0,0,comp_idx);
+    r = hal_export_funct("trajectory", trajectory, &skynet,0,0,comp_idx);
 
     r+=setup_pins();
     // Set dummy values.
     *max_velocity->Pin=5000;
     *max_acceleration->Pin=3000;
     *max_jerk->Pin=500;
+    *enable->Pin=1;
 
     // Load a sample gcode.
     wrapper_load_gcode();
@@ -99,9 +97,8 @@ void rtapi_app_exit(void){
     hal_exit(comp_idx);
 }
 
-//! Test every ms.
-
-static void read(){
+//! Perforn's every ms.
+static void trajectory(){
 
     if(*enable->Pin==1){
         // Velocity +/- will move the machine.
@@ -116,12 +113,8 @@ static void read(){
         *tcp_z->Pin=tcp.p.z+500;
         *current_velocity->Pin=tcp.vel;
         *current_acceleration->Pin=tcp.acc;
+        *current_position->Pin=tcp.pos;
     }
-}
-
-static void write()
-{  
-
 }
 
 static int setup_pins(){
@@ -141,14 +134,6 @@ static int setup_pins(){
     max_jerk = (float_data_t*)hal_malloc(sizeof(float_data_t));
     r+=hal_pin_float_new("max_jerk",HAL_IN,&(max_jerk->Pin),comp_idx);
 
-    current_position = (float_data_t*)hal_malloc(sizeof(float_data_t));
-    r+=hal_pin_float_new("current_position",HAL_IN,&(current_position->Pin),comp_idx);
-
-    current_velocity = (float_data_t*)hal_malloc(sizeof(float_data_t));
-    r+=hal_pin_float_new("current_velocity",HAL_IN,&(current_velocity->Pin),comp_idx);
-
-    current_acceleration = (float_data_t*)hal_malloc(sizeof(float_data_t));
-    r+=hal_pin_float_new("current_acceleration",HAL_IN,&(current_acceleration->Pin),comp_idx);
 
     //! Output pins, type float.
     tcp_x = (float_data_t*)hal_malloc(sizeof(float_data_t));
@@ -159,6 +144,16 @@ static int setup_pins(){
 
     tcp_z = (float_data_t*)hal_malloc(sizeof(float_data_t));
     r+=hal_pin_float_new("tcp_z",HAL_OUT,&(tcp_z->Pin),comp_idx);
+
+
+    current_position = (float_data_t*)hal_malloc(sizeof(float_data_t));
+    r+=hal_pin_float_new("current_position",HAL_OUT,&(current_position->Pin),comp_idx);
+
+    current_velocity = (float_data_t*)hal_malloc(sizeof(float_data_t));
+    r+=hal_pin_float_new("current_velocity",HAL_OUT,&(current_velocity->Pin),comp_idx);
+
+    current_acceleration = (float_data_t*)hal_malloc(sizeof(float_data_t));
+    r+=hal_pin_float_new("current_acceleration",HAL_OUT,&(current_acceleration->Pin),comp_idx);
 
     return r;
 }

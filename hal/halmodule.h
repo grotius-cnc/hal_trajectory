@@ -11,7 +11,7 @@ double x,y,z;
 
 struct TCP {
     struct POINT p;
-    double vel,acc,jerk;
+    double vel,acc,jerk,pos;
 };
 
 // C module functions:
