@@ -14,7 +14,7 @@ double x,y,z;
 
 struct TCP {
     POINT p;
-    double vel,acc,jerk;
+    double vel,acc,jerk,pos;
 };
 
 

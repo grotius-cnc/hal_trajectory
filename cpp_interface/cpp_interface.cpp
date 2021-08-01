@@ -255,6 +255,8 @@ TCP Cpp_interface::trajectory(double vel, double acc, double jerk, unsigned int 
 
         // One ms forward.
         out.trajectory.at_time(0.001, position, velocity, acceleration);
+        // For ocsilloscope output.
+        tcp.pos=position[0]; std::cout<<"tcp pos: "<<tcp.pos<<std::endl;
 
         // Gcode block that is currently in use, output is interpolated xyz position.
         double lenght=0;
