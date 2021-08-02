@@ -1,11 +1,27 @@
 #ifndef CPP_INTERFACE_H
 #define CPP_INTERFACE_H
 
-// https://github.com/pantor/ruckig
-
 #include "cpp_interface_global.h"
 #include <iostream>
+#include <vector>
+#include <fstream>
+
+//! https://github.com/pantor/ruckig
+//! A online-offline trajectory planner.
 #include <ruckig.hpp>
+
+//! Filedialog library.
+#include <libdialog/portable-file-dialogs.h>
+#if _WIN32
+#define DEFAULT_PATH "C:\\"
+#else
+#define DEFAULT_PATH "/tmp"
+#endif
+
+//! Gcode reader library.
+#include <libgcoderead/parser.h>
+
+#include <libskynet/directory.h>
 
 //! A struct that represent a 3d point.
 struct POINT {

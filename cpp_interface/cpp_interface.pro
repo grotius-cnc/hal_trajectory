@@ -12,17 +12,34 @@ CONFIG += c++20
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
-    cpp_interface.cpp
+    cpp_interface.cpp \
+    libgcoderead/gcode_program.cpp \
+    libgcoderead/parser.cpp \
+    libskynet/char_to_string.cpp \
+    libskynet/directory.cpp
 
 HEADERS += \
     cpp_interface_global.h \
-    cpp_interface.h
+    cpp_interface.h \
+    libgcoderead/gcode_program.h \
+    libgcoderead/parser.h \
+    libskynet/char_to_string.h \
+    libskynet/directory.h
 
 INCLUDEPATH+=   /home/user/Desktop/Linux-Embedded/linux-hal/halcompile-trajectory-ruckig/cpp_interface/ruckig/include/ruckig
 LIBS+= -L/home/user/Desktop/Linux-Embedded/linux-hal/halcompile-trajectory-ruckig/cpp_interface/ruckig/build -lruckig
+
+INCLUDEPATH+=
 
 # Default rules for deployment.
 unix {
     target.path = /usr/lib
 }
 !isEmpty(target.path): INSTALLS += target
+
+# this copies the configuration files etc to the build direcory. So user has only to edit the source directory.
+copydata.commands = $(COPY_DIR) $$PWD/* $$OUT_PWD
+first.depends = $(first) copydata
+export(first.depends)
+export(copydata.commands)
+QMAKE_EXTRA_TARGETS += first copydata

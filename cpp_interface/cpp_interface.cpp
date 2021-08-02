@@ -26,6 +26,7 @@ struct BLOCK {
     EULER euler_start={0,0,0}, euler_end={0,0,0};
     //! Calculated line or arc lenght.
     double blocklenght=0;
+    double feedrate=0;
 };
 BLOCK rapid; // Used for a rapid G0 move to go to the program start position.
 
@@ -45,6 +46,7 @@ double line_lenght(BLOCK line);
 double arc_lenght(BLOCK arc);
 POINT interpolate_line(BLOCK line, double distancetogo, bool debug);
 POINT interpolate_arc(BLOCK arc, double distancetogo, bool debug);
+void open_gcode_file(std::string filename, bool debug);
 
 Cpp_interface::Cpp_interface()
 {
@@ -52,69 +54,18 @@ Cpp_interface::Cpp_interface()
 
 //! Setup a demo traject
 void Cpp_interface::load_gcode(){
-    PATH path;
-    BLOCK l;
-    l.blocktype=BLOCKTYPE::G1;
-    l.start={0,0,0};
-    l.end={200,0,0};
-    l.blocklenght=line_lenght(l);
-    path.pathlenght+=l.blocklenght;
-    path.blockvec.push_back(l);
 
-    l.blocktype=BLOCKTYPE::G1;
-    l.start={200,0,0};
-    l.end={200,200,0};
-    l.blocklenght=line_lenght(l);
-    path.pathlenght+=l.blocklenght;
-    path.blockvec.push_back(l);
+    if (!pfd::settings::available()){
+        std::cout << "Portable File Dialogs are not available on this platform. \n"
+                     "On linux install zenity, $ sudo apt-get install zenity\n";
+    }
+    auto f = pfd::open_file("Choose files to read", "/home/user/Desktop/Cam/build-qt-dxf-Desktop-Debug/" /*directory().currentdir()*/,
+                            { "Dxf Files (.ngc)", "*.ngc",
+                              "All Files", "*" }, pfd::opt::none); // Or ::multiselect.
+    // functionname(f.result().at(0)); // This lib can open multiple results.
 
-    l.start={200,200,0};
-    l.end={0,200,0};
-    l.blocklenght=line_lenght(l);
-    path.pathlenght+=l.blocklenght;
-    path.blockvec.push_back(l);
-
-    l.start={0,200,0};
-    l.end={0,0,0};
-    l.blocklenght=line_lenght(l);
-    path.pathlenght+=l.blocklenght;
-    path.blockvec.push_back(l);
-
-    pathvec.push_back(path);
-    path.blockvec.clear();
-    path.pathlenght=0;
-    std::cout<<"pathlenght a:"<<pathvec.back().pathlenght<<std::endl; // Checked ok.
-
-    l.blocktype=BLOCKTYPE::G1;
-    l.start={0,0,0};
-    l.end={50,0,0};
-    l.blocklenght=line_lenght(l);
-    path.pathlenght+=l.blocklenght;
-    path.blockvec.push_back(l);
-
-    l.blocktype=BLOCKTYPE::G1;
-    l.start={50,0,0};
-    l.end={50,50,0};
-    l.blocklenght=line_lenght(l);
-    path.pathlenght+=l.blocklenght;
-    path.blockvec.push_back(l);
-
-    l.start={50,50,0};
-    l.end={0,50,0};
-    l.blocklenght=line_lenght(l);
-    path.pathlenght+=l.blocklenght;
-    path.blockvec.push_back(l);
-
-    l.start={0,50,0};
-    l.end={0,0,0};
-    l.blocklenght=line_lenght(l);
-    path.pathlenght+=l.blocklenght;
-    path.blockvec.push_back(l);
-
-    pathvec.push_back(path);
-    path.blockvec.clear();
-    path.pathlenght=0;
-    std::cout<<"pathlenght b:"<<pathvec.back().pathlenght<<std::endl; // Checked ok.
+    // std::vector<gcodeinterface::block> block;
+    open_gcode_file(f.result().at(0),/* debug */ true);
 }
 
 //! Performing a collection of trajects.
@@ -240,6 +191,8 @@ TCP Cpp_interface::trajectory(double vel, double acc, double jerk, unsigned int 
                 vel=0;
             }
         }
+
+        // Todo: set the velocity to the gcode block feedrate
 
         in.max_velocity[0]=abs(vel);
         in.max_acceleration[0]=acc;
@@ -411,20 +364,34 @@ POINT interpolate_arc(BLOCK arc, double distancetogo, bool debug){
     arc_lenght=(arc_angle/(2*M_PI))*circumfence;
 
     double ratio=distancetogo/arc_lenght;
-    double angle_of_ratio=0;
+
+    POINT p;
     if(arc.blocktype==BLOCKTYPE::G2){
-        angle_of_ratio=ratio*arc_angle;
+        p.x = radius * cos(start_angle+(ratio*arc_angle));//we now start at the start angle
+        p.y = radius * sin(start_angle+(ratio*arc_angle));
     }
     if(arc.blocktype==BLOCKTYPE::G3){
-        angle_of_ratio=(1-ratio)*arc_angle;
+        p.x = radius * cos(start_angle+((1-ratio)*arc_angle));//we now start at the start angle
+        p.y = radius * sin(start_angle+((1-ratio)*arc_angle));
     }
-
-    double rotated_x = cos(angle_of_ratio)* radius - sin(angle_of_ratio) * 0;
-    double rotated_y = sin(angle_of_ratio)* radius + cos(angle_of_ratio) * 0;
-    POINT p;
-    p.x = rotated_x + arc.center.x;
-    p.y = rotated_y + arc.center.y;
     p.z = arc.center.z;
+    p.x+=arc.center.x;
+    p.y+=arc.center.y;
+
+//    double angle_of_ratio=0;
+//    if(arc.blocktype==BLOCKTYPE::G2){
+//        angle_of_ratio=ratio*arc_angle;
+//    }
+//    if(arc.blocktype==BLOCKTYPE::G3){
+//        angle_of_ratio=(1-ratio)*arc_angle;
+//    }
+
+//    double rotated_x = cos(angle_of_ratio)* radius - sin(angle_of_ratio) * 0;
+//    double rotated_y = sin(angle_of_ratio)* radius + cos(angle_of_ratio) * 0;
+//    POINT p;
+//    p.x = rotated_x + arc.center.x;
+//    p.y = rotated_y + arc.center.y;
+//    p.z = arc.center.z;
 
     if(debug){
         if(arc.blocktype==BLOCKTYPE::G2){
@@ -444,3 +411,298 @@ POINT interpolate_arc(BLOCK arc, double distancetogo, bool debug){
     }
     return p;
 }
+
+void open_gcode_file(std::string filename, bool debug){
+
+    PATH path;
+    BLOCK l;
+    POINT previous={0,0,0};
+    bool inpath=0;
+
+    std::ifstream t(filename.c_str());
+    std::string file_contents((std::istreambuf_iterator<char>(t)),
+                              std::istreambuf_iterator<char>());
+
+    gpr::gcode_program p = gpr::parse_gcode(file_contents);
+
+    // Value's are only changed when value changes.
+    double X=0,Y=0,Z=0,I=0,J=0,K=0,F=0;
+
+    for(int i=0; i<p.num_blocks(); i++){
+        //std::cout<<"gcode line chunck size:"<<p.get_block(i).size()<<std::endl; // Text editor line +1.
+
+        for(int chunk=0; chunk<p.get_block(i).size(); chunk++){
+
+            /* Example
+        std::cout<<"chunk data: "<<p.get_block(i).get_chunk(chunk)<<std::endl; // Text editor line +1.
+        if(p.get_block(i).get_chunk(chunk).tp()==CHUNK_TYPE_WORD_ADDRESS){ // tp=type
+            std::cout<<"chunk word id: "<<p.get_block(i).get_chunk(chunk).get_word()<<std::endl; // the chunk Id.
+
+            block b=p.get_block(i);
+            if(b.get_chunk(chunk).get_address().tp()==ADDRESS_TYPE_DOUBLE){
+                std::cout<<"chunk double value: "<<b.get_chunk(chunk).get_address().double_value()<<std::endl;
+            }
+
+            if(b.get_chunk(chunk).get_address().tp()==ADDRESS_TYPE_INTEGER){
+                std::cout<<"chunk integer value: "<<b.get_chunk(chunk).get_address().int_value()<<std::endl;
+            }
+
+            if(b.get_chunk(chunk).tp()==CHUNK_TYPE_COMMENT){
+                std::cout<<"chunk comment: "<<b.get_chunk(chunk).get_comment_text()<<std::endl; // the chunk Id.
+            }
+        }
+        */
+
+            // Find the character : g,G
+            char a='0';
+            if(p.get_block(i).get_chunk(chunk).tp()==gpr::CHUNK_TYPE_WORD_ADDRESS){ // tp=type
+                a=p.get_block(i).get_chunk(chunk).get_word();
+            }
+            char axisletter;
+            int gtype=11111;
+
+            if(a=='M' || a=='m'){
+                if(debug){
+                    std::cout<<"M found"<<std::endl;
+                }
+                // Find 3,5
+                gtype=p.get_block(i).get_chunk(chunk).get_address().int_value();
+                if(debug){
+                    std::cout<<"M type:"<<gtype<<std::endl;
+                }
+
+                // Trigger is we are in a path, else save each item as a path.
+                if(gtype==3){
+                    inpath=1;
+                }
+                if(gtype==5){
+                    inpath=0;
+                }
+                if(gtype==30){
+                    inpath=0;
+                }
+            }
+
+            if(a=='G' || a=='g'){
+                // std::cout<<"G found"<<std::endl;
+                // Find 0,1,2,3
+                gtype=p.get_block(i).get_chunk(chunk).get_address().int_value();
+                // std::cout<<"G type:"<<gtype<<std::endl;
+
+                if(gtype==0){
+                    // std::cout<<"G0, draw a rapid"<<std::endl;
+
+                    for(int j=chunk+1; j<p.get_block(i).size(); j++){
+                        // Get the xyz values.
+                        axisletter=p.get_block(i).get_chunk(j).get_word();
+                        if(axisletter=='X' || axisletter=='x'){
+                            X=p.get_block(i).get_chunk(j).get_address().double_value();
+                        }
+                        if(axisletter=='Y' || axisletter=='y'){
+                            Y=p.get_block(i).get_chunk(j).get_address().double_value();
+                        }
+                        if(axisletter=='Z' || axisletter=='z'){
+                            Z=p.get_block(i).get_chunk(j).get_address().double_value();
+                        }
+                    }
+                    l.blocktype=BLOCKTYPE::G0;
+                    l.start={previous.x,previous.y,previous.z};
+                    l.end={X,Y,Z};
+                    previous.x=X; previous.y=Y; previous.z=Z;
+                    l.blocklenght=line_lenght(l);
+                    path.pathlenght+=l.blocklenght;
+                    path.blockvec.push_back(l);
+
+                    if(!inpath){
+                        pathvec.push_back(path);
+                        path.blockvec.clear();
+                        path.pathlenght=0;
+                    }
+                    if(debug){
+                        std::cout<<"g0 x:"<<X<<" y:"<<Y<<" z:"<<Z<<" f:"<<F<<std::endl;
+                    }
+                }
+                if(gtype==1){
+                    // std::cout<<"G1, draw a line"<<std::endl;
+
+                    for(int j=chunk+1; j<p.get_block(i).size(); j++){
+                        // Get the xyz values.
+                        axisletter=p.get_block(i).get_chunk(j).get_word();
+                        if(axisletter=='X' || axisletter=='x'){
+                            X=p.get_block(i).get_chunk(j).get_address().double_value();
+                        }
+                        if(axisletter=='Y' || axisletter=='y'){
+                            Y=p.get_block(i).get_chunk(j).get_address().double_value();
+                        }
+                        if(axisletter=='Z' || axisletter=='z'){
+                            Z=p.get_block(i).get_chunk(j).get_address().double_value();
+                        }
+                        if(axisletter=='F' || axisletter=='f'){
+                            F=p.get_block(i).get_chunk(j).get_address().double_value();
+                        }
+                    }
+                    l.blocktype=BLOCKTYPE::G1;
+                    l.start={previous.x,previous.y,previous.z};
+                    l.end={X,Y,Z};
+                    l.feedrate=F;
+                    previous.x=X; previous.y=Y; previous.z=Z;
+                    l.blocklenght=line_lenght(l);
+                    path.pathlenght+=l.blocklenght;
+                    path.blockvec.push_back(l);
+
+                    if(!inpath){
+                        pathvec.push_back(path);
+                        path.blockvec.clear();
+                        path.pathlenght=0;
+                    }
+                    if(debug){
+                        std::cout<<"g1 x:"<<X<<" y:"<<Y<<" z:"<<Z<<" f:"<<F<<std::endl;
+                    }
+                }
+                if(gtype==2){
+                    // std::cout<<"G2, draw a cw arc"<<std::endl;
+
+                    for(int j=chunk+1; j<p.get_block(i).size(); j++){
+                        // Get the xyz values.
+                        axisletter=p.get_block(i).get_chunk(j).get_word();
+                        if(axisletter=='X' || axisletter=='x'){
+                            X=p.get_block(i).get_chunk(j).get_address().double_value();
+                        }
+                        if(axisletter=='Y' || axisletter=='y'){
+                            Y=p.get_block(i).get_chunk(j).get_address().double_value();
+                        }
+                        if(axisletter=='Z' || axisletter=='z'){
+                            Z=p.get_block(i).get_chunk(j).get_address().double_value();
+                        }
+                        if(axisletter=='I' || axisletter=='i'){
+                            I=p.get_block(i).get_chunk(j).get_address().double_value();
+                        }
+                        if(axisletter=='J' || axisletter=='j'){
+                            J=p.get_block(i).get_chunk(j).get_address().double_value();
+                        }
+                        if(axisletter=='K' || axisletter=='k'){
+                            K=p.get_block(i).get_chunk(j).get_address().double_value();
+                        }
+                        if(axisletter=='F' || axisletter=='f'){
+                            F=p.get_block(i).get_chunk(j).get_address().double_value();
+                        }
+                    }
+                    l.blocktype=BLOCKTYPE::G2;
+                    l.start={previous.x,previous.y,previous.z};
+                    l.end={X,Y,Z};
+                    // [G2] I=offset xcenter-xstart, J=offset ycenter-ystart, G2=clockwise (cw), G3=counterclockwise (ccw)
+                    l.center={I+l.start.x,J+l.start.y,Z};
+                    l.feedrate=F;
+                    previous.x=X; previous.y=Y; previous.z=Z;
+                    l.blocklenght=arc_lenght(l);
+                    path.pathlenght+=l.blocklenght;
+                    path.blockvec.push_back(l);
+
+                    if(!inpath){
+                        pathvec.push_back(path);
+                        path.blockvec.clear();
+                        path.pathlenght=0;
+                    }
+                    if(debug){
+                        std::cout<<"g2 x:"<<X<<" y:"<<Y<<" z:"<<Z<<" i:"<<I<<" j:"<<J<<" k:"<<K<<" f:"<<F<<std::endl;
+                    }
+                }
+                if(gtype==3){
+                    // std::cout<<"G3, draw a ccw arc"<<std::endl;
+
+                    for(int j=chunk+1; j<p.get_block(i).size(); j++){
+                        // Get the xyz values.
+                        axisletter=p.get_block(i).get_chunk(j).get_word();
+                        if(axisletter=='X' || axisletter=='x'){
+                            X=p.get_block(i).get_chunk(j).get_address().double_value();
+                        }
+                        if(axisletter=='Y' || axisletter=='y'){
+                            Y=p.get_block(i).get_chunk(j).get_address().double_value();
+                        }
+                        if(axisletter=='Z' || axisletter=='z'){
+                            Z=p.get_block(i).get_chunk(j).get_address().double_value();
+                        }
+                        if(axisletter=='I' || axisletter=='i'){
+                            I=p.get_block(i).get_chunk(j).get_address().double_value();
+                        }
+                        if(axisletter=='J' || axisletter=='j'){
+                            J=p.get_block(i).get_chunk(j).get_address().double_value();
+                        }
+                        if(axisletter=='K' || axisletter=='k'){
+                            K=p.get_block(i).get_chunk(j).get_address().double_value();
+                        }
+                        if(axisletter=='F' || axisletter=='f'){
+                            F=p.get_block(i).get_chunk(j).get_address().double_value();
+                        }
+                    }
+                    l.blocktype=BLOCKTYPE::G3;
+                    l.start={previous.x,previous.y,previous.z};
+                    l.end={X,Y,Z};
+                    // [G2] I=offset xcenter-xstart, J=offset ycenter-ystart, G2=clockwise (cw), G3=counterclockwise (ccw)
+                    l.center={I+l.start.x,J+l.start.y,Z};
+                    l.feedrate=F;
+                    previous.x=X; previous.y=Y; previous.z=Z;
+                    l.blocklenght=arc_lenght(l);
+                    path.pathlenght+=l.blocklenght;
+                    path.blockvec.push_back(l);
+
+                    if(!inpath){
+                        pathvec.push_back(path);
+                        path.blockvec.clear();
+                        path.pathlenght=0;
+                    }
+                    if(debug){
+                        std::cout<<"g3 x:"<<X<<" y:"<<Y<<" z:"<<Z<<" i:"<<I<<" j:"<<J<<" k:"<<K<<" f:"<<F<<std::endl;
+                    }
+                }
+            }
+        }
+    }
+    if(debug){
+        std::cout<<" "<<std::endl;
+    }
+
+    if(debug){
+         for(unsigned int i=0; i<pathvec.size(); i++){
+              std::cout<<"Path:"<<i<<std::endl;
+             for(unsigned int j=0; j<pathvec.at(i).blockvec.size(); j++){
+
+                 std::cout<<"BLock:"<<j<<std::endl;
+                 if(pathvec.at(i).blockvec.at(j).blocktype==BLOCKTYPE::G0){
+                      std::cout<<"BLocktype G0"<<std::endl;
+                 }
+                 if(pathvec.at(i).blockvec.at(j).blocktype==BLOCKTYPE::G1){
+                      std::cout<<"BLocktype G1"<<std::endl;
+                 }
+                 if(pathvec.at(i).blockvec.at(j).blocktype==BLOCKTYPE::G2){
+                      std::cout<<"BLocktype G2"<<std::endl;
+                 }
+                 if(pathvec.at(i).blockvec.at(j).blocktype==BLOCKTYPE::G3){
+                      std::cout<<"BLocktype G3"<<std::endl;
+                 }
+                 std::cout<<"Start x:"<<pathvec.at(i).blockvec.at(j).start.x<<" y:"<<pathvec.at(i).blockvec.at(j).start.y<<" z:"<<pathvec.at(i).blockvec.at(j).start.z<<std::endl;
+                 if(pathvec.at(i).blockvec.at(j).blocktype==BLOCKTYPE::G2 || pathvec.at(i).blockvec.at(j).blocktype==BLOCKTYPE::G3){
+                     std::cout<<"Center x:"<<pathvec.at(i).blockvec.at(j).center.x<<" y:"<<pathvec.at(i).blockvec.at(j).center.y<<" z:"<<pathvec.at(i).blockvec.at(j).center.z<<std::endl;
+                 }
+                 std::cout<<"End x:"<<pathvec.at(i).blockvec.at(j).end.x<<" y:"<<pathvec.at(i).blockvec.at(j).end.y<<" z:"<<pathvec.at(i).blockvec.at(j).end.z<<std::endl;
+
+                 std::cout<<"Feedrate:"<<pathvec.at(i).blockvec.at(j).feedrate<<std::endl;
+             }
+         }
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
