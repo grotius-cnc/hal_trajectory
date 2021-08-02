@@ -33,24 +33,24 @@ cd $LINUXCNC_DIR/scripts && . ./rip-environment
         halcmd loadrt trajectory
         ########### Section opencascade + kinematics ############
         # Load the kuka model:
-        #halcmd loadrt opencascade stepfilepath=/home/user/Desktop/Linux-Embedded/linux-hal/halcompile-opencascade/machines/kuka_kr_6_10_agilus display_hz=60
+        halcmd loadrt opencascade stepfilepath=/home/user/Desktop/Linux-Embedded/linux-hal/halcompile-opencascade/machines/kuka_kr_6_10_agilus display_hz=60
         # Load the mitsubishi model:
-        halcmd loadrt opencascade stepfilepath=/home/user/Desktop/Linux-Embedded/linux-hal/halcompile-opencascade/machines/mitsubishi_rv_6sdl display_hz=60
-        halcmd loadrt kinematic
+        # halcmd loadrt opencascade stepfilepath=/home/user/Desktop/Linux-Embedded/linux-hal/halcompile-opencascade/machines/mitsubishi_rv_6sdl display_hz=60
+         halcmd loadrt kinematic
 
         halcmd addf trajectory servo-thread
         halcmd addf opencascade servo-thread
         halcmd addf kinematic servo-thread
 
         # Load the kuka params:
-        #halcmd -f /home/user/Desktop/Linux-Embedded/linux-hal/halcompile-opencascade/machines/kuka_kr_6_10_agilus/kuka_kr_6_10_agilus.hal
+        halcmd -f /home/user/Desktop/Linux-Embedded/linux-hal/halcompile-opencascade/machines/kuka_kr_6_10_agilus/kuka_kr_6_10_agilus.hal
         # Load the mitsubishi params:
-        halcmd -f /home/user/Desktop/Linux-Embedded/linux-hal/halcompile-opencascade/machines/mitsubishi_rv_6sdl/mitsubishi_rv_6sdl.hal
+        # halcmd -f /home/user/Desktop/Linux-Embedded/linux-hal/halcompile-opencascade/machines/mitsubishi_rv_6sdl/mitsubishi_rv_6sdl.hal
 
         # Link (net) kinematic results to opencascade.
-        halcmd -f /home/user/Desktop/Linux-Embedded/linux-hal/halcompile-opencascade/c-project/link.hal
+         halcmd -f /home/user/Desktop/Linux-Embedded/linux-hal/halcompile-opencascade/c-project/link.hal
 
-        halcmd -f $C_PROJECT_DIR/trajectory.hal
+         halcmd -f $C_PROJECT_DIR/trajectory.hal
 
         # start hal.
         halcmd start
@@ -63,5 +63,8 @@ cd $LINUXCNC_DIR/scripts && . ./rip-environment
 	# Unload rt components and clean up hal:
 	halrun -U
 
-
+# commands to test the program, in halshow :
+# setp kinematic.perform-fk 0
+# setp kinematic.perform-ik 1
+# setp max_velocity 2000
 

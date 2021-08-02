@@ -80,7 +80,7 @@ int rtapi_app_main(void) {
     *max_velocity->Pin=5000;
     *max_acceleration->Pin=3000;
     *max_jerk->Pin=500;
-    *enable->Pin=1;
+    // *enable->Pin=1;
 
     // Load a sample gcode.
     wrapper_load_gcode();
@@ -107,10 +107,14 @@ static void trajectory(){
         double tcpy=0;
         double tcpz=0;
 
+        // Robot offsets
+        // Kuka x=630, y=0, z=890
+        double x=630, y=0, z=500;
+
         tcp=wrapper_trajectory(*max_velocity->Pin,*max_acceleration->Pin,*max_jerk->Pin, startfromblock, tcpx, tcpy, tcpz);
-        *tcp_x->Pin=tcp.p.x+595;
-        *tcp_y->Pin=tcp.p.y+0;
-        *tcp_z->Pin=tcp.p.z+500;
+        *tcp_x->Pin=tcp.p.x+x;
+        *tcp_y->Pin=tcp.p.y+y;
+        *tcp_z->Pin=tcp.p.z+z;
         *current_velocity->Pin=tcp.vel;
         *current_acceleration->Pin=tcp.acc;
         *current_position->Pin=tcp.pos;
