@@ -12,6 +12,10 @@ LINUXCNC_RT_DIR="/opt/linuxcnc/rtlib"
 
 # Path to c project dir.
 C_PROJECT_DIR="/home/user/Desktop/Linux-Embedded/linux-hal/halcompile-trajectory-ruckig/hal"
+
+# Path to halcmdgui executable.
+/home/user/Desktop/Linux-Embedded/linux-hal/halcompile-trajectory-ruckig/cpp_interface/build-libhalcmdgui-Desktop-Debug/libhalcmdgui &
+
 rm -rf $LINUXCNC_RT_DIR/trajectory.so 					# Remove old files
 cp -rf $C_PROJECT_DIR/trajectory.so $LINUXCNC_RT_DIR	# Copy new component .so file to rtlib
 
@@ -19,8 +23,10 @@ cp -rf $C_PROJECT_DIR/trajectory.so $LINUXCNC_RT_DIR	# Copy new component .so fi
 # Let linux know where to search for extra shared library's.
 sudo ldconfig \
 /home/user/Desktop/Linux-Embedded/linux-hal/halcompile-trajectory-ruckig/build-cpp_interface-Desktop-Release \
-/home/user/Desktop/Linux-Embedded/linux-hal/halcompile-trajectory-ruckig/cpp_interface/ruckig/build \
 /opt/linuxcnc/rtlib \
+
+# Ruckig is now inside the shared lib.
+#/home/user/Desktop/Linux-Embedded/linux-hal/halcompile-trajectory-ruckig/cpp_interface/ruckig/build \
 
 cd $LINUXCNC_DIR/scripts && . ./rip-environment
 	
@@ -36,7 +42,7 @@ cd $LINUXCNC_DIR/scripts && . ./rip-environment
         halcmd loadrt opencascade stepfilepath=/home/user/Desktop/Linux-Embedded/linux-hal/halcompile-opencascade/machines/kuka_kr_6_10_agilus display_hz=60
         # Load the mitsubishi model:
         # halcmd loadrt opencascade stepfilepath=/home/user/Desktop/Linux-Embedded/linux-hal/halcompile-opencascade/machines/mitsubishi_rv_6sdl display_hz=60
-         halcmd loadrt kinematic
+        halcmd loadrt kinematic
 
         halcmd addf trajectory servo-thread
         halcmd addf opencascade servo-thread
@@ -52,13 +58,36 @@ cd $LINUXCNC_DIR/scripts && . ./rip-environment
 
          halcmd -f $C_PROJECT_DIR/trajectory.hal
 
+        # set the buffersize of the char array to pass the gcode_filename.
+        halcmd sets signal_filename 150
+
         # start hal.
         halcmd start
 
+        # initialize the machine kinematics.
+        halcmd setp kinematic.perform-fk 0
+        halcmd setp kinematic.perform-ik 1
+
+        # set machine tcp offsets.
+        halcmd setp trajectory.tcp_offset_x 630
+        halcmd setp trajectory.tcp_offset_y 0
+        halcmd setp trajectory.tcp_offset_z 500
+
+        # set standard values.
+        halcmd setp trajectory.max_velocity 200
+        halcmd setp trajectory.max_acceleration 100
+        halcmd setp trajectory.max_jerk 50
+        halcmd setp trajectory.velocity_override 1.0
+        halcmd setp trajectory.enable 1
+
+        halcmd setp trajectory.mode_auto 0
+        halcmd setp trajectory.mode_jog 1
+        halcmd setp trajectory.mode_mdi 0
+
  	# Start hal programs to debug:
         # halmeter
-        # halshow
-         halscope
+         halshow
+        # halscope
 	
 	# Unload rt components and clean up hal:
 	halrun -U

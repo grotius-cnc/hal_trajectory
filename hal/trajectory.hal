@@ -2,7 +2,7 @@
 # setp kinematic.perform-fk 0
 # setp kinematic.perform-ik 1
 
-net net_cart_x_in tcp_x kinematic.pin-cartx-in
-net net_cart_y_in tcp_y kinematic.pin-carty-in
-net net_cart_z_in tcp_z kinematic.pin-cartz-in
+net net_cart_x_in trajectory.tcp_x kinematic.pin-cartx-in
+net net_cart_y_in trajectory.tcp_y kinematic.pin-carty-in
+net net_cart_z_in trajectory.tcp_z kinematic.pin-cartz-in
 
