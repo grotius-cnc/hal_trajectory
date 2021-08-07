@@ -3,8 +3,8 @@
 Trajectory example.
 
 Supported :
-- auto mode, running a gcode
-- jog mode, move along xyz
+  auto mode, running a gcode
+  jog mode, move along xyz
 
 Video preview
 https://user-images.githubusercontent.com/44880102/127900012-b7c19051-7d22-45dc-b7ee-0a229e1caa60.mp4
