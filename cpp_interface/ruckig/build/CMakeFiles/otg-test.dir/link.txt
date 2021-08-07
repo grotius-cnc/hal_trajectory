@@ -1,1 +1,0 @@
-/usr/bin/c++ -O3 -DNDEBUG CMakeFiles/otg-test.dir/test/otg-test.cpp.o -o otg-test  -Wl,-rpath,/home/user/Desktop/Linux-Embedded/linux-hal/halcompile-trajectory-ruckig/ruckig/build libruckig.so 

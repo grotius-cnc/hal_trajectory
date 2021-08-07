@@ -1,1 +1,0 @@
-/usr/bin/c++ -fPIC -O3 -DNDEBUG -shared -Wl,-soname,libruckig.so -o libruckig.so CMakeFiles/ruckig.dir/src/brake.cpp.o CMakeFiles/ruckig.dir/src/position-step1.cpp.o CMakeFiles/ruckig.dir/src/position-step2.cpp.o CMakeFiles/ruckig.dir/src/velocity-step1.cpp.o CMakeFiles/ruckig.dir/src/velocity-step2.cpp.o 
