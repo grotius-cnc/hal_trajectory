@@ -3,8 +3,8 @@
 Trajectory example.
 
 Supported :
-  auto mode, running a gcode
-  jog mode, move along xyz
+  - auto mode, running a gcode
+  - jog mode, move along xyz
 
 Including control gui. A interface that uses hal commands and a hal port.
 
