@@ -1,15 +1,39 @@
 #include "cpp_interface.h"
 
+//! auto mode
 ruckig::Ruckig<1> otg {0.001};
 ruckig::InputParameter<1> in;
 ruckig::OutputParameter<1> out;
 std::array<double, 1> position, velocity, acceleration;
 std::array<double, 1> rapid_position, rapid_velocity, rapid_acceleration;
 
-//! A struct that represents a direction vector.
-struct EULER{
-    double euler_x, euler_y, euler_z;
-};
+//! jog mode
+//! xyz axis
+ruckig::Ruckig<1> otg_x {0.001};
+ruckig::Ruckig<1> otg_y {0.001};
+ruckig::Ruckig<1> otg_z {0.001};
+ruckig::InputParameter<1> in_x;
+ruckig::OutputParameter<1> out_x;
+ruckig::InputParameter<1> in_y;
+ruckig::OutputParameter<1> out_y;
+ruckig::InputParameter<1> in_z;
+ruckig::OutputParameter<1> out_z;
+std::array<double, 1> jog_x_position, jog_x_velocity, jog_x_acceleration;
+std::array<double, 1> jog_y_position, jog_y_velocity, jog_y_acceleration;
+std::array<double, 1> jog_z_position, jog_z_velocity, jog_z_acceleration;
+//! euler xyz axis
+ruckig::Ruckig<1> otg_ex {0.001};
+ruckig::Ruckig<1> otg_ey {0.001};
+ruckig::Ruckig<1> otg_ez {0.001};
+ruckig::InputParameter<1> in_ex;
+ruckig::OutputParameter<1> out_ex;
+ruckig::InputParameter<1> in_ey;
+ruckig::OutputParameter<1> out_ey;
+ruckig::InputParameter<1> in_ez;
+ruckig::OutputParameter<1> out_ez;
+std::array<double, 1> jog_euler_x_position, jog_euler_x_velocity, jog_euler_x_acceleration;
+std::array<double, 1> jog_euler_y_position, jog_euler_y_velocity, jog_euler_y_acceleration;
+std::array<double, 1> jog_euler_z_position, jog_euler_z_velocity, jog_euler_z_acceleration;
 
 //! Different types of gcode operations.
 enum BLOCKTYPE {
@@ -22,6 +46,8 @@ enum BLOCKTYPE {
 //! A block is a chunk of gcode that represents a primitive like a line or arc.
 struct BLOCK {
     BLOCKTYPE blocktype=BLOCKTYPE::G0;
+    int mcode=0;
+    double power_rpm=0;
     POINT start={0,0,0}, center={0,0,0}, end={0,0,0};
     EULER euler_start={0,0,0}, euler_end={0,0,0};
     //! Calculated line or arc lenght.
@@ -29,6 +55,8 @@ struct BLOCK {
     double feedrate=0;
 };
 BLOCK rapid; // Used for a rapid G0 move to go to the program start position.
+BLOCK jog;
+BLOCK mdi;
 
 //! A path is a collection of blocks.
 struct PATH {
@@ -38,8 +66,17 @@ struct PATH {
 std::vector<PATH> pathvec;
 //! Indicates in wich pathvec the traject is active.
 unsigned int pvi=0;
-int trigger=0;
 bool in_position=0;
+char *filename;
+
+bool trigger_start=0;
+bool trigger_pvi=0;
+bool trigger_in_position=0;
+bool trigger_stop=0;
+bool trigger_pause=0;
+bool trigger_resume=0;
+POINT a,b;
+double gcode_velocity=0;
 
 //! Defenition helper functions.
 double line_lenght(BLOCK line);
@@ -53,236 +90,573 @@ Cpp_interface::Cpp_interface()
 }
 
 //! Setup a demo traject
-void Cpp_interface::load_gcode(){
+void Cpp_interface::load_gcode(char *name){
 
-    if (!pfd::settings::available()){
-        std::cout << "Portable File Dialogs are not available on this platform. \n"
-                     "On linux install zenity, $ sudo apt-get install zenity\n";
-    }
-    auto f = pfd::open_file("Choose files to read", "/home/user/Desktop/Cam/build-qt-dxf-Desktop-Debug/" /*directory().currentdir()*/,
-                            { "Dxf Files (.ngc)", "*.ngc",
-                              "All Files", "*" }, pfd::opt::none); // Or ::multiselect.
-    // functionname(f.result().at(0)); // This lib can open multiple results.
+    std::cout<<"gcode to load :"<<name<<std::endl;
 
-    // std::vector<gcodeinterface::block> block;
-    open_gcode_file(f.result().at(0),/* debug */ true);
+    //    if (!pfd::settings::available()){
+    //        std::cout << "Portable File Dialogs are not available on this platform. \n"
+    //                     "On linux install zenity, $ sudo apt-get install zenity\n";
+    //    }
+    //    auto f = pfd::open_file("Choose files to read", "/home/user/Desktop/Cam/build-qt-dxf-Desktop-Debug/" /*directory().currentdir()*/,
+    //                            { "Dxf Files (.ngc)", "*.ngc",
+    //                              "All Files", "*" }, pfd::opt::none); // Or ::multiselect.
+    //    // functionname(f.result().at(0)); // This lib can open multiple results.
+
+    //    // std::vector<gcodeinterface::block> block;
+
+    filename=name;
+    open_gcode_file(filename,/* debug */ true);
 }
 
-//! Performing a collection of trajects.
+//! Mode auto, performing a collection of trajects.
 //! A traject is a collection of gcode blocks between M3 and M5 or a rapic G0.
 //!
 //! When the trajectory is running, user can set:
 //!     max_velocity, results in forward- or backward path move.
 //!     max_acceleration
 //!     max_jerk
-//!
-//! A single traject command can be a :
-//!     reset pvi=0;
-//!     mdi command.
-//!     goto startposition of a certain gcode line.
-//!
-//! For now reset the trigger every time you perform "run from line"
-//!
-TCP Cpp_interface::trajectory(double vel, double acc, double jerk, unsigned int startfromblock, double tcp_x, double tcp_y, double tcp_z){
+TCP Cpp_interface::trajectory_auto(double velocity_override,
+                                   bool start, bool stop, bool pause, bool resume,
+                                   double vel, double acc, double jerk,
+                                   unsigned int startfromblock, double tcp_x, double tcp_y, double tcp_z){
 
-    //! Implement start, stop, pause, resume.
-    //! When stop :
-    //!     trigger=0, in_position=0
-    //!     set vel to 0, to make a controlled dcc stop.
-    //! When start :
-    //!      Nothing to do.
-    //! When pause, resume :
-    //!      Maybe toggle the time from 0.001 ms to 0.000 ms.
     TCP tcp;
+    if(start){ // Stop current move with dcc path, and start again.
+        trigger_start=1;
 
-    if(!trigger){
-        // Perform a startsequence from current tcp xyz to start tcp xyz of the gcode block.
-        unsigned int nr=0, ii=0, jj=0;
-        pvi=0;
-        for(unsigned int i=0; i<pathvec.size(); i++){
-            double lenght=0;
-            ii=i;
-            for(unsigned int j=0; j<pathvec.at(i).blockvec.size(); j++){
+        tcp.m3=0;
+        tcp.m7=0;
+        tcp.m8=0;
+    }
+    if(trigger_start){
+        trigger_pvi=0;
+        trigger_in_position=0;
+        trigger_start=0;
+        trigger_pause=0;
+    }
 
+    if(stop){
+        trigger_stop=1;
+
+        tcp.m3=0;
+        tcp.m7=0;
+        tcp.m8=0;
+    }
+    if(trigger_stop){
+        vel=0;
+    }
+
+    if(pause){
+        trigger_pause=1;
+    }
+    if(trigger_pause){
+        vel=0;
+    }
+
+    if(resume){
+        trigger_resume=1;
+    }
+    if(trigger_resume){
+        trigger_pause=0;
+        trigger_stop=0;
+        trigger_resume=0;
+    }
+
+    if(pathvec.size()>0){
+
+        if(!trigger_pvi){ // Set start block.
+            unsigned int nr=0;
+            for(unsigned int i=0; i<pathvec.size(); i++){
+
+                for(unsigned int j=0; j<pathvec.at(i).blockvec.size(); j++){
+                    if(nr==startfromblock){
+                        pvi=i;
+                        break;
+                    }
+                    nr++;
+                }
                 if(nr==startfromblock){
-                    pvi=i;
-                    position[0]=lenght;
-                    jj=j;
                     break;
                 }
-                nr++;
-                lenght+=pathvec.at(i).blockvec.at(j).blocklenght;
             }
-            if(nr==startfromblock){
-                break;
-            }
-        }
-        // std::cout<<"pvi start:"<<pvi<<std::endl;
-        // std::cout<<"position start of trajectory:"<<position[0]<<std::endl;
 
-        // Set the current tcp location into the BLOCK rapid.
-        rapid.start.x=tcp_x;
-        rapid.start.y=tcp_y;
-        rapid.start.z=tcp_z;
-        // std::cout<<"current tcp x:"<<rapid.start.x<<" y:"<<rapid.start.y<<" z:"<<rapid.start.z<<std::endl;
-
-        // Get the actual xyz position of the gcode start location:
-        rapid.end=interpolate_line(pathvec.at(ii).blockvec.at(jj),pathvec.at(ii).blockvec.at(jj).blocklenght,0);
-        // std::cout<<"gcode startpoint x:"<<rapid.end.x<<" y:"<<rapid.end.y<<" z:"<<rapid.end.z<<std::endl;
-
-        rapid.blocklenght=line_lenght(rapid);
-        // std::cout<<"rapid G0 distance:"<<rapid.blocklenght<<std::endl;
-
-        rapid_position[0]=0;
-        rapid_velocity[0];
-        rapid_acceleration[0];
-
-        trigger=1;
-    }
-
-    if(!in_position && trigger==1){
-
-        in.max_velocity[0]=abs(vel);
-        in.max_acceleration[0]=acc;
-        in.max_jerk[0]=jerk;
-        in.current_position[0]=rapid_position[0];
-        in.current_velocity[0]=rapid_velocity[0];
-        in.current_acceleration[0]=rapid_acceleration[0];
-        in.target_position[0]=rapid.blocklenght;
-        in.target_velocity[0]=0;
-        in.target_acceleration[0]=0;
-
-        auto result = otg.update(in, out);
-        result = ruckig::Result::Working;
-
-        // One ms forward.
-        out.trajectory.at_time(0.001, rapid_position, rapid_velocity, rapid_acceleration);
-
-        // If in position, end this function.  double blocklenght=pathvec.at(pvi).blockvec.at(i).blocklenght;
-        double distancetogo=rapid.blocklenght-rapid_position[0];
-        POINT p=interpolate_line(rapid,distancetogo,0);
-        std::cout<<"Moving to program start position p.x: "<<p.x<<" p.y:"<<p.y<<" p.z:"<<p.z<<std::endl;
-        tcp.p=p;
-        tcp.vel=rapid_velocity[0];
-        tcp.acc=rapid_acceleration[0];
-
-        // Forward destiny reached, increment to "next" path, if there is one.
-        if(rapid_position[0]==rapid.blocklenght){
-            in_position=1;
-            // std::cout<<"In program start position"<<std::endl;
+            a={tcp_x,tcp_y,tcp_z};
+            b=pathvec.at(pvi).blockvec.front().start;
+            rapid_position[0]=0; // set the rapic pathlenght to begin position;
+            position[0]=0;
+            trigger_pvi=1;
         }
 
-        // For info: backward move is not implemented in the go to program startposition move.
-        // User can do a
-    }
+        if(trigger_pvi && !trigger_in_position){
+            BLOCK rapid;
+            rapid.start=a;
+            rapid.end=b;
+            rapid.blocklenght=line_lenght(rapid);
+            rapid.blocktype=BLOCKTYPE::G0;
 
-    if(in_position){ // Perform the program in auto mode.
+            in.max_velocity[0]=abs(vel);
+            in.max_acceleration[0]=acc;
+            in.max_jerk[0]=jerk;
+            in.current_position[0]=rapid_position[0];
+            in.current_velocity[0]=rapid_velocity[0];
+            in.current_acceleration[0]=rapid_acceleration[0];
+            in.target_position[0]=rapid.blocklenght;
+            in.target_velocity[0]=0;
+            in.target_acceleration[0]=0;
 
-        // Maxvel +/- is forward or backward, like adaptive feed.
-        if(vel>0){
-            in.target_position[0]=pathvec.at(pvi).pathlenght; // Goto path end.
-        }
-        if(vel<0){
-            in.target_position[0]=0; // Goto path begin.
-        }
-        if(vel==0){ // Cannot input 0 as value. Create a stop sequence. For emergency a instand stop can be done like : vel=0
-            vel=0.0001;
-            if(velocity[0]<0.001 && velocity[0]>0.000){
-                vel=0;
+            auto result = otg.update(in, out);
+            result = ruckig::Result::Working;
+
+            // One ms forward.
+            out.trajectory.at_time(0.001, rapid_position, rapid_velocity, rapid_acceleration);
+
+            // If in position, end this function.  double blocklenght=pathvec.at(pvi).blockvec.at(i).blocklenght;
+            double distancetogo=rapid.blocklenght-rapid_position[0];
+            POINT p=interpolate_line(rapid,distancetogo,0);
+            // std::cout<<"Moving to program start position p.x: "<<p.x<<" p.y:"<<p.y<<" p.z:"<<p.z<<std::endl;
+            tcp.p=p;
+            tcp.vel=rapid_velocity[0];
+            tcp.acc=rapid_acceleration[0];
+
+            // Forward destiny reached, increment to "next" path, if there is one.
+            if(rapid_position[0]>rapid.blocklenght-1){
+                trigger_in_position=1;
+                // std::cout<<"In program start position"<<std::endl;
             }
         }
 
-        // Todo: set the velocity to the gcode block feedrate
+        if(trigger_pvi && trigger_in_position){ // Perform the program in auto mode.
 
-        in.max_velocity[0]=abs(vel);
-        in.max_acceleration[0]=acc;
-        in.max_jerk[0]=jerk;
-        in.current_position[0]=position[0];
-        in.current_velocity[0]=velocity[0];
-        in.current_acceleration[0]=acceleration[0];
-        in.target_velocity[0]=0;
-        in.target_acceleration[0]=0;
-
-        auto result = otg.update(in, out);
-        result = ruckig::Result::Working;
-
-        // One ms forward.
-        out.trajectory.at_time(0.001, position, velocity, acceleration);
-        // For ocsilloscope output.
-        tcp.pos=position[0]; std::cout<<"tcp pos: "<<tcp.pos<<std::endl;
-
-        // Gcode block that is currently in use, output is interpolated xyz position.
-        double lenght=0;
-        for(unsigned int i=0; i<pathvec.at(pvi).blockvec.size(); i++){
-            double begin=lenght;
-            lenght+=pathvec.at(pvi).blockvec.at(i).blocklenght;
-            double end=lenght;
-
-            if(position[0]>=begin && position[0]<=end){
-                // std::cout<<"block i:"<<i<<std::endl;
-
-                double blocklenght=pathvec.at(pvi).blockvec.at(i).blocklenght;
-                double blockpos=position[0]-begin; // From 0 to blocklenght.
-                double distancetogo=blocklenght-blockpos;
-
-                // Interpolate xyz coordinates of the gcode primitive given the distancetogo.
-                POINT p;
-                if(pathvec.at(pvi).blockvec.at(i).blocktype==BLOCKTYPE::G0 || pathvec.at(pvi).blockvec.at(i).blocktype==BLOCKTYPE::G1){
-                    p=interpolate_line(pathvec.at(pvi).blockvec.at(i),distancetogo,0);
-                    std::cout<<"line p.x: "<<p.x<<" p.y:"<<p.y<<" p.z:"<<p.z<<std::endl;
-                    tcp.p=p;
-                    tcp.vel=velocity[0];
-                    tcp.acc=acceleration[0];
+            // Maxvel +/- is forward or backward, like adaptive feed.
+            if(vel>0){
+                in.target_position[0]=pathvec.at(pvi).pathlenght; // Goto path end.
+            }
+            if(vel<0){
+                in.target_position[0]=0; // Goto path begin.
+            }
+            if(vel==0){ // Cannot input 0 as value. Create a stop sequence. For emergency a instand stop can be done like : vel=0
+                vel=0.0001;
+                if(velocity[0]<0.001 && velocity[0]>0.000){
+                    vel=0;
                 }
-                if(pathvec.at(pvi).blockvec.at(i).blocktype==BLOCKTYPE::G2 || pathvec.at(pvi).blockvec.at(i).blocktype==BLOCKTYPE::G3){
-                    p=interpolate_arc(pathvec.at(pvi).blockvec.at(i),distancetogo,0);
-                    std::cout<<"arc p.x: "<<p.x<<" p.y:"<<p.y<<" p.z:"<<p.z<<std::endl;
-                    tcp.p=p;
-                    tcp.vel=velocity[0];
-                    tcp.acc=acceleration[0];
+            }
+
+            in.max_velocity[0]=/*abs(vel)*/ gcode_velocity; // std::cout<<"gcode velocity:"<<gcode_velocity<<std::endl;
+            in.max_acceleration[0]=acc;
+            in.max_jerk[0]=jerk;
+            in.current_position[0]=position[0];
+            in.current_velocity[0]=velocity[0];
+            in.current_acceleration[0]=acceleration[0];
+            in.target_velocity[0]=0;
+            in.target_acceleration[0]=0;
+
+            auto result = otg.update(in, out);
+            result = ruckig::Result::Working;
+
+            // One ms forward.
+            out.trajectory.at_time(0.001, position, velocity, acceleration);
+            // For ocsilloscope output.
+            tcp.pos=position[0]; // std::cout<<"tcp pos: "<<tcp.pos<<std::endl;
+
+            // Gcode block that is currently in use, output is interpolated xyz position.
+            double lenght=0;
+            for(unsigned int i=0; i<pathvec.at(pvi).blockvec.size(); i++){
+                double begin=lenght;
+                lenght+=pathvec.at(pvi).blockvec.at(i).blocklenght;
+                double end=lenght;
+
+                if(position[0]>=begin && position[0]<=end){
+                    // std::cout<<"block i:"<<i<<std::endl;
+
+                    // Set the gcode feedrate
+                    if(pathvec.at(pvi).blockvec.at(i).blocktype==BLOCKTYPE::G1 ||
+                            pathvec.at(pvi).blockvec.at(i).blocktype==BLOCKTYPE::G2 ||
+                            pathvec.at(pvi).blockvec.at(i).blocktype==BLOCKTYPE::G3){
+                        gcode_velocity=abs(pathvec.at(pvi).blockvec.at(i).feedrate*velocity_override);
+                        if(gcode_velocity>vel){
+                            gcode_velocity=abs(vel); // Don't go faster then the max gui velocity value.
+                        }
+                    }
+
+                    if(pathvec.at(pvi).blockvec.at(i).blocktype==BLOCKTYPE::G0){
+                        gcode_velocity=abs(vel);
+                    }
+
+                    double blocklenght=pathvec.at(pvi).blockvec.at(i).blocklenght;
+                    double blockpos=position[0]-begin; // From 0 to blocklenght.
+                    double distancetogo=blocklenght-blockpos;
+
+                    // Interpolate xyz coordinates of the gcode primitive given the distancetogo.
+                    POINT p;
+                    if(pathvec.at(pvi).blockvec.at(i).blocktype==BLOCKTYPE::G0 || pathvec.at(pvi).blockvec.at(i).blocktype==BLOCKTYPE::G1){
+                        p=interpolate_line(pathvec.at(pvi).blockvec.at(i),distancetogo,0);
+                        // std::cout<<"line p.x: "<<p.x<<" p.y:"<<p.y<<" p.z:"<<p.z<<std::endl;
+                        tcp.p=p;
+                        tcp.vel=velocity[0];
+                        tcp.acc=acceleration[0];
+
+                        if(pathvec.at(pvi).blockvec.at(i).mcode==3){
+                            tcp.m3=1;
+                            tcp.power_rpm=pathvec.at(pvi).blockvec.at(i).power_rpm;
+                        }
+                        if(pathvec.at(pvi).blockvec.at(i).mcode==7){
+                            tcp.m7=1;
+                            tcp.power_rpm=pathvec.at(pvi).blockvec.at(i).power_rpm;
+                        }
+                        if(pathvec.at(pvi).blockvec.at(i).mcode==8){
+                            tcp.m8=1;
+                            tcp.power_rpm=pathvec.at(pvi).blockvec.at(i).power_rpm;
+                        }
+                        if(pathvec.at(pvi).blockvec.at(i).mcode==5){
+                            tcp.m3=0;
+                            tcp.power_rpm=0;
+                        }
+                        if(pathvec.at(pvi).blockvec.at(i).mcode==9){
+                            tcp.m7=0;
+                            tcp.m8=0;
+                            tcp.power_rpm=0;
+                        }
+                    }
+                    if(pathvec.at(pvi).blockvec.at(i).blocktype==BLOCKTYPE::G2 || pathvec.at(pvi).blockvec.at(i).blocktype==BLOCKTYPE::G3){
+                        p=interpolate_arc(pathvec.at(pvi).blockvec.at(i),distancetogo,0);
+                        // std::cout<<"arc p.x: "<<p.x<<" p.y:"<<p.y<<" p.z:"<<p.z<<std::endl;
+                        tcp.p=p;
+                        tcp.vel=velocity[0];
+                        tcp.acc=acceleration[0];
+
+                        if(pathvec.at(pvi).blockvec.at(i).mcode==3){
+                            tcp.m3=1;
+                            tcp.power_rpm=pathvec.at(pvi).blockvec.at(i).power_rpm;
+                        }
+                        if(pathvec.at(pvi).blockvec.at(i).mcode==7){
+                            tcp.m7=1;
+                            tcp.power_rpm=pathvec.at(pvi).blockvec.at(i).power_rpm;
+                        }
+                        if(pathvec.at(pvi).blockvec.at(i).mcode==8){
+                            tcp.m8=1;
+                            tcp.power_rpm=pathvec.at(pvi).blockvec.at(i).power_rpm;
+                        }
+                        if(pathvec.at(pvi).blockvec.at(i).mcode==5){
+                            tcp.m3=0;
+                            tcp.power_rpm=0;
+                        }
+                        if(pathvec.at(pvi).blockvec.at(i).mcode==9){
+                            tcp.m7=0;
+                            tcp.m8=0;
+                            tcp.power_rpm=0;
+                        }
+                    }
+                    break;
                 }
-                break;
             }
-        }
 
-        // Forward destiny reached, increment to "next" path, if there is one.
-        if(position[0]==pathvec.at(pvi).pathlenght && vel>0){
-            if(pvi<pathvec.size()-1){
-                pvi++;
-                // std::cout<<"end of traject reached, forward velocity, into next path"<<std::endl;
+            // Forward destiny reached, increment to "next" path, if there is one.
+            if(position[0]==pathvec.at(pvi).pathlenght && vel>0){
+                if(pvi<pathvec.size()-1){
+                    pvi++;
+                    // std::cout<<"end of traject reached, forward velocity, into next path"<<std::endl;
 
-                // Set position to begin of next path.
-                position[0]=0;
+                    // Set position to begin of next path.
+                    position[0]=0;
+                }
             }
-        }
 
-        // backward destiny reached, decrement to "previous" path, if there is one.
-        if(position[0]==0 && vel<0){
-            if(pvi>0){
-                pvi--;
-                // std::cout<<"begin of traject reached, backward velocity, into previous path"<<std::endl;
+            // backward destiny reached, decrement to "previous" path, if there is one.
+            if(position[0]==0 && vel<0){
+                if(pvi>0){
+                    pvi--;
+                    // std::cout<<"begin of traject reached, backward velocity, into previous path"<<std::endl;
 
-                // Set position to end of (already previous) path
-                position[0]=pathvec.at(pvi).pathlenght;
+                    // Set position to end of (already previous) path
+                    position[0]=pathvec.at(pvi).pathlenght;
+                }
             }
-        }
 
-        // std::cout<<"traject pvi:"<<pvi<<std::endl;
-        // std::cout<<"pos:"<<position[0]<<std::endl;
-        // std::cout<<"vel:"<<velocity[0]<<std::endl;
-        // std::cout<<"acc:"<<acceleration[0]<<std::endl;
+            // std::cout<<"traject pvi:"<<pvi<<std::endl;
+            // std::cout<<"pos:"<<position[0]<<std::endl;
+            // std::cout<<"vel:"<<velocity[0]<<std::endl;
+            // std::cout<<"acc:"<<acceleration[0]<<std::endl;
+        }
     }
-
     return tcp;
 }
 
 //! C module function wrappers:
-extern "C" void wrapper_load_gcode(){ // C to cpp wrapper function
-    Cpp_interface().load_gcode();
+extern "C" void wrapper_load_gcode(char* name){ // C to cpp wrapper function
+    Cpp_interface().load_gcode(name);
 }
 
-extern "C" TCP wrapper_trajectory(double vel, double acc, double jerk, unsigned int startfromblock, double tcp_x, double tcp_y, double tcp_z){ // C to cpp wrapper function
-    TCP p=Cpp_interface().trajectory(vel, acc, jerk, startfromblock, tcp_x, tcp_y, tcp_z);
+//! C module function wrappers:
+extern "C" TCP wrapper_trajectory_auto(double velocity_override,
+                                       bool start, bool stop, bool pause, bool resume,
+                                       double vel, double acc, double jerk,
+                                       unsigned int startfromblock, double tcp_x, double tcp_y, double tcp_z){ // C to cpp wrapper function
+    TCP p=Cpp_interface().trajectory_auto(velocity_override,
+                                          start, stop, pause, resume,
+                                          vel, acc, jerk,
+                                          startfromblock, tcp_x, tcp_y, tcp_z);
+    return p;
+}
+
+//! Mode jog.
+TCP Cpp_interface::trajectory_jog(int jog_x, int jog_y, int jog_z,
+                                  int jog_euler_x, int jog_euler_y, int jog_euler_z,
+                                  double vel, double acc, double jerk,
+                                  double tcp_x, double tcp_y, double tcp_z,
+                                  double tcp_euler_x, double tcp_euler_y, double tcp_euler_z){
+
+    // For each axis we use a seperate ruckig trajectory planner.
+    TCP tcp;
+    double velx=vel;
+    double vely=vel;
+    double velz=vel;
+    tcp.p.x=tcp_x;
+    tcp.p.y=tcp_y;
+    tcp.p.z=tcp_z;
+
+    double velex=vel;
+    double veley=vel;
+    double velez=vel;
+    tcp.e.euler_x=tcp_euler_x;
+    tcp.e.euler_y=tcp_euler_y;
+    tcp.e.euler_z=tcp_euler_z;
+
+    // Jog euler x ******************
+    if(jog_euler_x==0){
+        velex=0.0001;
+        if(jog_euler_x_velocity[0]<0.001 && jog_euler_x_velocity[0]>0.000){
+            velex=0;
+        }
+        // std::cout<<"stop the jog move"<<std::endl;
+    }
+    double dex;
+    if(jog_euler_x>0){
+        dex=2*M_PI;
+        // std::cout<<"jog euler x+"<<std::endl;
+    }
+    if(jog_euler_x<0){
+        dex=-(2/M_PI);
+        // std::cout<<"jog euler x-"<<std::endl;
+    }
+
+    in_ex.max_velocity[0]=abs(velex);
+    in_ex.max_acceleration[0]=acc;
+    in_ex.max_jerk[0]=jerk;
+    in_ex.current_position[0]=tcp.e.euler_x;
+    in_ex.current_velocity[0]=jog_euler_x_velocity[0];
+    in_ex.current_acceleration[0]=jog_euler_x_acceleration[0];
+    in_ex.target_velocity[0]=0;
+    in_ex.target_acceleration[0]=0;
+    in_ex.target_position[0]=jog_euler_x_position[0]+dex;
+
+    auto result_ex = otg_ex.update(in_ex, out_ex);
+    result_ex = ruckig::Result::Working;
+
+    // One ms forward.
+    out_ex.trajectory.at_time(0.001, jog_euler_x_position, jog_euler_x_velocity, jog_euler_x_acceleration);
+    tcp.e.euler_x=jog_euler_x_position[0];
+    // std::cout<<"vel jog euler x: "<<jog_euler_x_velocity[0]<<std::endl;
+
+
+    // Jog euler y ******************
+    if(jog_euler_y==0){
+        veley=0.0001;
+        if(jog_euler_y_velocity[0]<0.001 && jog_euler_y_velocity[0]>0.000){
+            veley=0;
+        }
+        // std::cout<<"stop the jog move"<<std::endl;
+    }
+    double dey;
+    if(jog_euler_y>0){
+        dey=2*M_PI;
+        // std::cout<<"jog euler y+"<<std::endl;
+    }
+    if(jog_euler_y<0){
+        dey=-(2/M_PI);
+        // std::cout<<"jog euler y-"<<std::endl;
+    }
+
+    in_ey.max_velocity[0]=abs(veley);
+    in_ey.max_acceleration[0]=acc;
+    in_ey.max_jerk[0]=jerk;
+    in_ey.current_position[0]=tcp.e.euler_y;
+    in_ey.current_velocity[0]=jog_euler_y_velocity[0];
+    in_ey.current_acceleration[0]=jog_euler_y_acceleration[0];
+    in_ey.target_velocity[0]=0;
+    in_ey.target_acceleration[0]=0;
+    in_ey.target_position[0]=jog_euler_y_position[0]+dey;
+
+    auto result_ey = otg_ey.update(in_ey, out_ey);
+    result_ey = ruckig::Result::Working;
+
+    // One ms forward.
+    out_ey.trajectory.at_time(0.001, jog_euler_y_position, jog_euler_y_velocity, jog_euler_y_acceleration);
+    tcp.e.euler_y=jog_euler_y_position[0];
+    // std::cout<<"vel jog euler y: "<<jog_euler_y_velocity[0]<<std::endl;
+
+
+    // Jog euler z ******************
+    if(jog_euler_z==0){
+        velez=0.0001;
+        if(jog_euler_z_velocity[0]<0.001 && jog_euler_z_velocity[0]>0.000){
+            velez=0;
+        }
+        // std::cout<<"stop the jog move"<<std::endl;
+    }
+    double dez;
+    if(jog_euler_z>0){
+        dez=2*M_PI;
+        // std::cout<<"jog euler z+"<<std::endl;
+    }
+    if(jog_euler_z<0){
+        dez=-(2/M_PI);
+        // std::cout<<"jog euler z-"<<std::endl;
+    }
+
+    in_ez.max_velocity[0]=abs(velez);
+    in_ez.max_acceleration[0]=acc;
+    in_ez.max_jerk[0]=jerk;
+    in_ez.current_position[0]=tcp.e.euler_z;
+    in_ez.current_velocity[0]=jog_euler_z_velocity[0];
+    in_ez.current_acceleration[0]=jog_euler_z_acceleration[0];
+    in_ez.target_velocity[0]=0;
+    in_ez.target_acceleration[0]=0;
+    in_ez.target_position[0]=jog_euler_z_position[0]+dez;
+
+    auto result_ez = otg_ez.update(in_ez, out_ez);
+    result_ez = ruckig::Result::Working;
+
+    // One ms forward.
+    out_ez.trajectory.at_time(0.001, jog_euler_z_position, jog_euler_z_velocity, jog_euler_z_acceleration);
+    tcp.e.euler_z=jog_euler_z_position[0];
+    // std::cout<<"vel jog euler z: "<<jog_euler_z_velocity[0]<<std::endl;
+
+
+    // Jog x ******************
+    if(jog_x==0){
+        velx=0.0001;
+        if(jog_x_velocity[0]<0.001 && jog_x_velocity[0]>0.000){
+            velx=0;
+        }
+        // std::cout<<"stop the jog move"<<std::endl;
+    }
+    double dx;
+    if(jog_x>0){
+        dx=1000;
+        // std::cout<<"jog x+"<<std::endl;
+    }
+    if(jog_x<0){
+        dx=-1000;
+        // std::cout<<"jog x-"<<std::endl;
+    }
+
+    in_x.max_velocity[0]=abs(velx);
+    in_x.max_acceleration[0]=acc;
+    in_x.max_jerk[0]=jerk;
+    in_x.current_position[0]=tcp.p.x;
+    jog_x_position[0]=tcp.p.x;
+    in_x.current_velocity[0]=jog_x_velocity[0];
+    in_x.current_acceleration[0]=jog_x_acceleration[0];
+    in_x.target_velocity[0]=0;
+    in_x.target_acceleration[0]=0;
+    in_x.target_position[0]=jog_x_position[0]+dx;
+
+    auto result_x = otg_x.update(in_x, out_x);
+    result_x = ruckig::Result::Working;
+
+    // One ms forward.
+    out_x.trajectory.at_time(0.001, jog_x_position, jog_x_velocity, jog_x_acceleration);
+    tcp.p.x=jog_x_position[0];
+    // std::cout<<"vel jog x: "<<jog_x_velocity[0]<<std::endl;
+
+    // Jog y ******************
+    if(jog_y==0){
+        vely=0.0001;
+        if(jog_y_velocity[0]<0.001 && jog_y_velocity[0]>0.000){
+            vely=0;
+        }
+        // std::cout<<"stop the jog move"<<std::endl;
+    }
+    double dy;
+    if(jog_y>0){
+        dy=1000;
+        // std::cout<<"jog y+"<<std::endl;
+    }
+    if(jog_y<0){
+        dy=-1000;
+        // std::cout<<"jog y-"<<std::endl;
+    }
+
+    in_y.max_velocity[0]=abs(vely);
+    in_y.max_acceleration[0]=acc;
+    in_y.max_jerk[0]=jerk;
+    in_y.current_position[0]=tcp.p.y;
+    jog_y_position[0]=tcp.p.y;
+    in_y.current_velocity[0]=jog_y_velocity[0];
+    in_y.current_acceleration[0]=jog_y_acceleration[0];
+    in_y.target_velocity[0]=0;
+    in_y.target_acceleration[0]=0;
+    in_y.target_position[0]=jog_y_position[0]+dy;
+
+    auto result_y = otg_y.update(in_y, out_y);
+    result_y = ruckig::Result::Working;
+
+    // One ms forward.
+    out_y.trajectory.at_time(0.001, jog_y_position, jog_y_velocity, jog_y_acceleration);
+    tcp.p.y=jog_y_position[0];
+    // std::cout<<"vel jog y: "<<jog_y_velocity[0]<<std::endl;
+
+    // Jog z ******************
+    if(jog_z==0){
+        velz=0.0001;
+        if(jog_z_velocity[0]<0.001 && jog_z_velocity[0]>0.000){
+            velz=0;
+        }
+        // std::cout<<"stop the jog move"<<std::endl;
+    }
+    double dz;
+    if(jog_z>0){
+        dz=1000;
+        // std::cout<<"jog z+"<<std::endl;
+    }
+    if(jog_z<0){
+        dz=-1000;
+        // std::cout<<"jog z-"<<std::endl;
+    }
+
+    in_z.max_velocity[0]=abs(velz);
+    in_z.max_acceleration[0]=acc;
+    in_z.max_jerk[0]=jerk;
+    in_z.current_position[0]=tcp.p.z;
+    jog_z_position[0]=tcp.p.z;
+    in_z.current_velocity[0]=jog_z_velocity[0];
+    in_z.current_acceleration[0]=jog_z_acceleration[0];
+    in_z.target_velocity[0]=0;
+    in_z.target_acceleration[0]=0;
+    in_z.target_position[0]=jog_z_position[0]+dz;
+
+    auto result_z = otg_z.update(in_z, out_z);
+    result_z = ruckig::Result::Working;
+
+    // One ms forward.
+    out_z.trajectory.at_time(0.001, jog_z_position, jog_z_velocity, jog_z_acceleration);
+    tcp.p.z=jog_z_position[0];
+    // std::cout<<"vel jog z: "<<jog_z_velocity[0]<<std::endl;
+
+    return tcp;
+}
+
+extern "C" TCP wrapper_trajectory_jog(int jog_x, int jog_y, int jog_z,
+                                      int jog_euler_x, int jog_euler_y, int jog_euler_z,
+                                      double vel, double acc, double jerk,
+                                      double tcp_x, double tcp_y, double tcp_z,
+                                      double tcp_euler_x, double tcp_euler_y, double tcp_euler_z){
+    TCP p=Cpp_interface().trajectory_jog(jog_x, jog_y, jog_z,
+                                         jog_euler_x, jog_euler_y, jog_euler_z,
+                                         vel, acc, jerk,
+                                         tcp_x, tcp_y, tcp_z,
+                                         tcp_euler_x, tcp_euler_y, tcp_euler_z);
     return p;
 }
 
@@ -374,24 +748,10 @@ POINT interpolate_arc(BLOCK arc, double distancetogo, bool debug){
         p.x = radius * cos(start_angle+((1-ratio)*arc_angle));//we now start at the start angle
         p.y = radius * sin(start_angle+((1-ratio)*arc_angle));
     }
-    p.z = arc.center.z;
+
     p.x+=arc.center.x;
     p.y+=arc.center.y;
-
-//    double angle_of_ratio=0;
-//    if(arc.blocktype==BLOCKTYPE::G2){
-//        angle_of_ratio=ratio*arc_angle;
-//    }
-//    if(arc.blocktype==BLOCKTYPE::G3){
-//        angle_of_ratio=(1-ratio)*arc_angle;
-//    }
-
-//    double rotated_x = cos(angle_of_ratio)* radius - sin(angle_of_ratio) * 0;
-//    double rotated_y = sin(angle_of_ratio)* radius + cos(angle_of_ratio) * 0;
-//    POINT p;
-//    p.x = rotated_x + arc.center.x;
-//    p.y = rotated_y + arc.center.y;
-//    p.z = arc.center.z;
+    p.z=arc.center.z;
 
     if(debug){
         if(arc.blocktype==BLOCKTYPE::G2){
@@ -414,10 +774,13 @@ POINT interpolate_arc(BLOCK arc, double distancetogo, bool debug){
 
 void open_gcode_file(std::string filename, bool debug){
 
+    pathvec.clear();
     PATH path;
     BLOCK l;
     POINT previous={0,0,0};
     bool inpath=0;
+    int mtype=11111;
+    double svalue=0;
 
     std::ifstream t(filename.c_str());
     std::string file_contents((std::istreambuf_iterator<char>(t)),
@@ -461,24 +824,35 @@ void open_gcode_file(std::string filename, bool debug){
             char axisletter;
             int gtype=11111;
 
-            if(a=='M' || a=='m'){
+            if(a=='S' || a=='s'){
                 if(debug){
-                    std::cout<<"M found"<<std::endl;
+                    // std::cout<<"S found"<<std::endl;
                 }
                 // Find 3,5
-                gtype=p.get_block(i).get_chunk(chunk).get_address().int_value();
+                svalue=p.get_block(i).get_chunk(chunk).get_address().double_value();
                 if(debug){
-                    std::cout<<"M type:"<<gtype<<std::endl;
+                    std::cout<<"S value:"<<gtype<<std::endl;
+                }
+            }
+
+            if(a=='M' || a=='m'){
+                if(debug){
+                    // std::cout<<"M found"<<std::endl;
+                }
+                // Find 3,5
+                mtype=p.get_block(i).get_chunk(chunk).get_address().int_value();
+                if(debug){
+                    std::cout<<"M type:"<<mtype<<std::endl;
                 }
 
                 // Trigger is we are in a path, else save each item as a path.
-                if(gtype==3){
+                if(mtype==3 || mtype==7 || mtype==8){
                     inpath=1;
                 }
-                if(gtype==5){
+                if(mtype==5 || mtype==9){
                     inpath=0;
                 }
-                if(gtype==30){
+                if(mtype==30){
                     inpath=0;
                 }
             }
@@ -505,6 +879,8 @@ void open_gcode_file(std::string filename, bool debug){
                             Z=p.get_block(i).get_chunk(j).get_address().double_value();
                         }
                     }
+                    l.mcode=mtype;
+                    l.power_rpm=svalue;
                     l.blocktype=BLOCKTYPE::G0;
                     l.start={previous.x,previous.y,previous.z};
                     l.end={X,Y,Z};
@@ -541,6 +917,8 @@ void open_gcode_file(std::string filename, bool debug){
                             F=p.get_block(i).get_chunk(j).get_address().double_value();
                         }
                     }
+                    l.mcode=mtype;
+                    l.power_rpm=svalue;
                     l.blocktype=BLOCKTYPE::G1;
                     l.start={previous.x,previous.y,previous.z};
                     l.end={X,Y,Z};
@@ -587,6 +965,8 @@ void open_gcode_file(std::string filename, bool debug){
                             F=p.get_block(i).get_chunk(j).get_address().double_value();
                         }
                     }
+                    l.mcode=mtype;
+                    l.power_rpm=svalue;
                     l.blocktype=BLOCKTYPE::G2;
                     l.start={previous.x,previous.y,previous.z};
                     l.end={X,Y,Z};
@@ -635,6 +1015,8 @@ void open_gcode_file(std::string filename, bool debug){
                             F=p.get_block(i).get_chunk(j).get_address().double_value();
                         }
                     }
+                    l.mcode=mtype;
+                    l.power_rpm=svalue;
                     l.blocktype=BLOCKTYPE::G3;
                     l.start={previous.x,previous.y,previous.z};
                     l.end={X,Y,Z};
@@ -663,44 +1045,38 @@ void open_gcode_file(std::string filename, bool debug){
     }
 
     if(debug){
-         for(unsigned int i=0; i<pathvec.size(); i++){
-              std::cout<<"Path:"<<i<<std::endl;
-             for(unsigned int j=0; j<pathvec.at(i).blockvec.size(); j++){
+        for(unsigned int i=0; i<pathvec.size(); i++){
+            std::cout<<"Path:"<<i<<std::endl;
+            for(unsigned int j=0; j<pathvec.at(i).blockvec.size(); j++){
 
-                 std::cout<<"BLock:"<<j<<std::endl;
-                 if(pathvec.at(i).blockvec.at(j).blocktype==BLOCKTYPE::G0){
-                      std::cout<<"BLocktype G0"<<std::endl;
-                 }
-                 if(pathvec.at(i).blockvec.at(j).blocktype==BLOCKTYPE::G1){
-                      std::cout<<"BLocktype G1"<<std::endl;
-                 }
-                 if(pathvec.at(i).blockvec.at(j).blocktype==BLOCKTYPE::G2){
-                      std::cout<<"BLocktype G2"<<std::endl;
-                 }
-                 if(pathvec.at(i).blockvec.at(j).blocktype==BLOCKTYPE::G3){
-                      std::cout<<"BLocktype G3"<<std::endl;
-                 }
-                 std::cout<<"Start x:"<<pathvec.at(i).blockvec.at(j).start.x<<" y:"<<pathvec.at(i).blockvec.at(j).start.y<<" z:"<<pathvec.at(i).blockvec.at(j).start.z<<std::endl;
-                 if(pathvec.at(i).blockvec.at(j).blocktype==BLOCKTYPE::G2 || pathvec.at(i).blockvec.at(j).blocktype==BLOCKTYPE::G3){
-                     std::cout<<"Center x:"<<pathvec.at(i).blockvec.at(j).center.x<<" y:"<<pathvec.at(i).blockvec.at(j).center.y<<" z:"<<pathvec.at(i).blockvec.at(j).center.z<<std::endl;
-                 }
-                 std::cout<<"End x:"<<pathvec.at(i).blockvec.at(j).end.x<<" y:"<<pathvec.at(i).blockvec.at(j).end.y<<" z:"<<pathvec.at(i).blockvec.at(j).end.z<<std::endl;
+                std::cout<<"BLock:"<<j<<std::endl;
+                if(pathvec.at(i).blockvec.at(j).blocktype==BLOCKTYPE::G0){
+                    std::cout<<"BLocktype G0"<<std::endl;
+                }
+                if(pathvec.at(i).blockvec.at(j).blocktype==BLOCKTYPE::G1){
+                    std::cout<<"BLocktype G1"<<std::endl;
+                }
+                if(pathvec.at(i).blockvec.at(j).blocktype==BLOCKTYPE::G2){
+                    std::cout<<"BLocktype G2"<<std::endl;
+                }
+                if(pathvec.at(i).blockvec.at(j).blocktype==BLOCKTYPE::G3){
+                    std::cout<<"BLocktype G3"<<std::endl;
+                }
+                std::cout<<"Start x:"<<pathvec.at(i).blockvec.at(j).start.x<<" y:"<<pathvec.at(i).blockvec.at(j).start.y<<" z:"<<pathvec.at(i).blockvec.at(j).start.z<<std::endl;
+                if(pathvec.at(i).blockvec.at(j).blocktype==BLOCKTYPE::G2 || pathvec.at(i).blockvec.at(j).blocktype==BLOCKTYPE::G3){
+                    std::cout<<"Center x:"<<pathvec.at(i).blockvec.at(j).center.x<<" y:"<<pathvec.at(i).blockvec.at(j).center.y<<" z:"<<pathvec.at(i).blockvec.at(j).center.z<<std::endl;
+                }
+                std::cout<<"End x:"<<pathvec.at(i).blockvec.at(j).end.x<<" y:"<<pathvec.at(i).blockvec.at(j).end.y<<" z:"<<pathvec.at(i).blockvec.at(j).end.z<<std::endl;
 
-                 std::cout<<"Feedrate:"<<pathvec.at(i).blockvec.at(j).feedrate<<std::endl;
-             }
-         }
+                std::cout<<"Feedrate:"<<pathvec.at(i).blockvec.at(j).feedrate<<std::endl;
+
+                std::cout<<"Mcode:"<<pathvec.at(i).blockvec.at(j).mcode<<std::endl;
+                std::cout<<"Svalue:"<<pathvec.at(i).blockvec.at(j).power_rpm<<std::endl;
+
+            }
+        }
     }
 }
-
-
-
-
-
-
-
-
-
-
 
 
 
