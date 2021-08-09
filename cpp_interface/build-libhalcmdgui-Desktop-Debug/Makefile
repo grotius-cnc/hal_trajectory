@@ -52,9 +52,11 @@ OBJECTS_DIR   = ./
 
 ####### Files
 
-SOURCES       = ../libhalcmdgui/main.cpp \
+SOURCES       = ../libhalcmdgui/libskynet/directory.cpp \
+		../libhalcmdgui/main.cpp \
 		../libhalcmdgui/mainwindow.cpp moc_mainwindow.cpp
-OBJECTS       = main.o \
+OBJECTS       = directory.o \
+		main.o \
 		mainwindow.o \
 		moc_mainwindow.o
 DIST          = /opt/qt-creator/5.15.1/gcc_64/mkspecs/features/spec_pre.prf \
@@ -236,7 +238,8 @@ DIST          = /opt/qt-creator/5.15.1/gcc_64/mkspecs/features/spec_pre.prf \
 		/opt/qt-creator/5.15.1/gcc_64/mkspecs/features/lex.prf \
 		../libhalcmdgui/libhalcmdgui.pro ../libhalcmdgui/hal.h \
 		../libhalcmdgui/libskynet/directory.h \
-		../libhalcmdgui/mainwindow.h ../libhalcmdgui/main.cpp \
+		../libhalcmdgui/mainwindow.h ../libhalcmdgui/libskynet/directory.cpp \
+		../libhalcmdgui/main.cpp \
 		../libhalcmdgui/mainwindow.cpp
 QMAKE_TARGET  = libhalcmdgui
 DESTDIR       = 
@@ -622,7 +625,7 @@ distdir: FORCE
 	$(COPY_FILE) --parents $(DIST) $(DISTDIR)/
 	$(COPY_FILE) --parents /opt/qt-creator/5.15.1/gcc_64/mkspecs/features/data/dummy.cpp $(DISTDIR)/
 	$(COPY_FILE) --parents ../libhalcmdgui/hal.h ../libhalcmdgui/libskynet/directory.h ../libhalcmdgui/mainwindow.h $(DISTDIR)/
-	$(COPY_FILE) --parents ../libhalcmdgui/main.cpp ../libhalcmdgui/mainwindow.cpp $(DISTDIR)/
+	$(COPY_FILE) --parents ../libhalcmdgui/libskynet/directory.cpp ../libhalcmdgui/main.cpp ../libhalcmdgui/mainwindow.cpp $(DISTDIR)/
 	$(COPY_FILE) --parents ../libhalcmdgui/mainwindow.ui $(DISTDIR)/
 
 
@@ -795,6 +798,9 @@ compiler_lex_clean:
 compiler_clean: compiler_moc_predefs_clean compiler_moc_header_clean compiler_uic_clean 
 
 ####### Compile
+
+directory.o: ../libhalcmdgui/libskynet/directory.cpp ../libhalcmdgui/libskynet/directory.h
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o directory.o ../libhalcmdgui/libskynet/directory.cpp
 
 main.o: ../libhalcmdgui/main.cpp ../libhalcmdgui/mainwindow.h \
 		/opt/qt-creator/5.15.1/gcc_64/include/QtWidgets/QMainWindow \
@@ -1033,7 +1039,50 @@ mainwindow.o: ../libhalcmdgui/mainwindow.cpp ../libhalcmdgui/mainwindow.h \
 		../libhalcmdgui/rtapi_stdint.h \
 		../libhalcmdgui/libdialog/portable-file-dialogs.h \
 		../libhalcmdgui/libskynet/directory.h \
-		ui_mainwindow.h
+		ui_mainwindow.h \
+		/opt/qt-creator/5.15.1/gcc_64/include/QtCore/QVariant \
+		/opt/qt-creator/5.15.1/gcc_64/include/QtWidgets/QApplication \
+		/opt/qt-creator/5.15.1/gcc_64/include/QtWidgets/qapplication.h \
+		/opt/qt-creator/5.15.1/gcc_64/include/QtCore/qcoreapplication.h \
+		/opt/qt-creator/5.15.1/gcc_64/include/QtCore/qeventloop.h \
+		/opt/qt-creator/5.15.1/gcc_64/include/QtWidgets/qdesktopwidget.h \
+		/opt/qt-creator/5.15.1/gcc_64/include/QtGui/qguiapplication.h \
+		/opt/qt-creator/5.15.1/gcc_64/include/QtGui/qinputmethod.h \
+		/opt/qt-creator/5.15.1/gcc_64/include/QtWidgets/QGridLayout \
+		/opt/qt-creator/5.15.1/gcc_64/include/QtWidgets/qgridlayout.h \
+		/opt/qt-creator/5.15.1/gcc_64/include/QtWidgets/qlayout.h \
+		/opt/qt-creator/5.15.1/gcc_64/include/QtWidgets/qlayoutitem.h \
+		/opt/qt-creator/5.15.1/gcc_64/include/QtWidgets/qboxlayout.h \
+		/opt/qt-creator/5.15.1/gcc_64/include/QtWidgets/QLabel \
+		/opt/qt-creator/5.15.1/gcc_64/include/QtWidgets/qlabel.h \
+		/opt/qt-creator/5.15.1/gcc_64/include/QtWidgets/qframe.h \
+		/opt/qt-creator/5.15.1/gcc_64/include/QtWidgets/QLineEdit \
+		/opt/qt-creator/5.15.1/gcc_64/include/QtWidgets/qlineedit.h \
+		/opt/qt-creator/5.15.1/gcc_64/include/QtGui/qtextcursor.h \
+		/opt/qt-creator/5.15.1/gcc_64/include/QtGui/qtextformat.h \
+		/opt/qt-creator/5.15.1/gcc_64/include/QtGui/qpen.h \
+		/opt/qt-creator/5.15.1/gcc_64/include/QtGui/qtextoption.h \
+		/opt/qt-creator/5.15.1/gcc_64/include/QtWidgets/QMenuBar \
+		/opt/qt-creator/5.15.1/gcc_64/include/QtWidgets/qmenubar.h \
+		/opt/qt-creator/5.15.1/gcc_64/include/QtWidgets/qmenu.h \
+		/opt/qt-creator/5.15.1/gcc_64/include/QtWidgets/qaction.h \
+		/opt/qt-creator/5.15.1/gcc_64/include/QtWidgets/qactiongroup.h \
+		/opt/qt-creator/5.15.1/gcc_64/include/QtWidgets/QPlainTextEdit \
+		/opt/qt-creator/5.15.1/gcc_64/include/QtWidgets/qplaintextedit.h \
+		/opt/qt-creator/5.15.1/gcc_64/include/QtWidgets/qtextedit.h \
+		/opt/qt-creator/5.15.1/gcc_64/include/QtWidgets/qabstractscrollarea.h \
+		/opt/qt-creator/5.15.1/gcc_64/include/QtGui/qtextdocument.h \
+		/opt/qt-creator/5.15.1/gcc_64/include/QtGui/qabstracttextdocumentlayout.h \
+		/opt/qt-creator/5.15.1/gcc_64/include/QtGui/qtextlayout.h \
+		/opt/qt-creator/5.15.1/gcc_64/include/QtGui/qglyphrun.h \
+		/opt/qt-creator/5.15.1/gcc_64/include/QtGui/qrawfont.h \
+		/opt/qt-creator/5.15.1/gcc_64/include/QtGui/qfontdatabase.h \
+		/opt/qt-creator/5.15.1/gcc_64/include/QtWidgets/QPushButton \
+		/opt/qt-creator/5.15.1/gcc_64/include/QtWidgets/qpushbutton.h \
+		/opt/qt-creator/5.15.1/gcc_64/include/QtWidgets/qabstractbutton.h \
+		/opt/qt-creator/5.15.1/gcc_64/include/QtWidgets/QStatusBar \
+		/opt/qt-creator/5.15.1/gcc_64/include/QtWidgets/qstatusbar.h \
+		/opt/qt-creator/5.15.1/gcc_64/include/QtWidgets/QWidget
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o mainwindow.o ../libhalcmdgui/mainwindow.cpp
 
 moc_mainwindow.o: moc_mainwindow.cpp 
