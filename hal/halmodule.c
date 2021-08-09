@@ -68,8 +68,8 @@ param_float_data_t *start_from_gcodeblock;
 typedef struct {
     hal_bit_t Pin;
 } param_bit_data_t;
-param_bit_data_t *load_file, *start_, *stop_, *pause_, *resume_;
-param_bit_data_t *mode_auto, *mode_jog, *mode_mdi;
+param_bit_data_t *load_file, *load_mdi, *start_, *stop_, *run_from_line;
+param_bit_data_t *mode_auto, *mode_jog;
 param_bit_data_t *jog_x_plus, *jog_x_min, *jog_y_plus, *jog_y_min, *jog_z_plus, *jog_z_min;
 param_bit_data_t *jog_euler_x_plus, *jog_euler_x_min, *jog_euler_y_plus, *jog_euler_y_min, *jog_euler_z_plus, *jog_euler_z_min;
 
@@ -85,7 +85,6 @@ static void trajectory();
 static int setup_pins();
 static void perform_auto();
 static void perform_jog();
-static void perform_mdi();
 
 int rtapi_app_main(void) {
 
@@ -97,7 +96,7 @@ int rtapi_app_main(void) {
     r+=setup_pins();
 
     // Start up in pause. When user press start, program's begin.
-    pause_->Pin=1;
+    stop_->Pin=1;
 
     if(r) {
         hal_exit(comp_idx);
@@ -118,10 +117,30 @@ static void trajectory(){
     // To reload or load a new gcode file, setp trajectory.enable 0 => setp.trajectory.load_file 1 => setp.trajectory.run 1
     if(*enable->Pin==1){
 
+        if(mode_auto->Pin){
+            trigger_auto=1;
+            trigger_jog=0;
+        }
+        if(mode_jog->Pin){
+            trigger_auto=0;
+            trigger_jog=1;
+        }
+
+        if(trigger_auto){
+            perform_auto();
+
+        }
+        if(trigger_jog){
+            perform_jog();
+        }
+
+        tcp=get_tcp();
+
         // Update hal output before mode auto,jog,mdi.
         *tcp_x->Pin=tcp.p.x+*tcp_offset_x->Pin;
         *tcp_y->Pin=tcp.p.y+*tcp_offset_y->Pin;
         *tcp_z->Pin=tcp.p.z+*tcp_offset_z->Pin;
+
         *tcp_euler_x->Pin=tcp.e.euler_x;
         *tcp_euler_y->Pin=tcp.e.euler_y;
         *tcp_euler_z->Pin=tcp.e.euler_z;
@@ -130,31 +149,7 @@ static void trajectory(){
         *current_acceleration->Pin=tcp.acc;
         *current_position->Pin=tcp.pos;
 
-        if(mode_auto->Pin){
-            trigger_auto=1;
-            trigger_mdi=0;
-            trigger_jog=0;
-        }
-        if(mode_mdi->Pin){
-            trigger_auto=0;
-            trigger_mdi=1;
-            trigger_jog=0;
-        }
-        if(mode_jog->Pin){
-            trigger_auto=0;
-            trigger_mdi=0;
-            trigger_jog=1;
-        }
 
-        if(trigger_auto){
-            perform_auto();
-        }
-        if(trigger_jog){
-            perform_jog();
-        }
-        if(trigger_mdi){
-            perform_mdi();
-        }
     }
 
     bool ok= hal_port_read(*port->Pin,dest,140);
@@ -167,6 +162,11 @@ static void trajectory(){
     if(load_file->Pin==1){ // Tested ok.
         wrapper_load_gcode(dest);
         load_file->Pin=0; // Reset pin.
+    }
+
+    if(load_mdi->Pin==1){
+        wrapper_load_gcode(dest);
+        load_mdi->Pin=0;
     }
 }
 
@@ -246,10 +246,7 @@ static void perform_jog(){
     }
 
     // Every ms:
-    tcp=wrapper_trajectory_jog(x,y,z,eulx,euly,eulz,
-                               *max_velocity->Pin,*max_acceleration->Pin,*max_jerk->Pin,
-                               tcp.p.x, tcp.p.y, tcp.p.z,
-                               tcp.e.euler_x,tcp.e.euler_y,tcp.e.euler_z);
+    wrapper_trajectory_jog(x,y,z,*max_velocity->Pin,*max_acceleration->Pin,*max_jerk->Pin);
 
     *m3_out->Pin=*m3_in->Pin;
     *m7_out->Pin=*m7_in->Pin;
@@ -257,24 +254,16 @@ static void perform_jog(){
     *power_rpm_out->Pin=*power_rpm_in->Pin;
 }
 
-static void perform_mdi(){
-
-    // We can just load a gcode file with just one line and perform this in auto mode.
-}
-
 static void perform_auto(){
-
     // Every ms:
-    tcp=wrapper_trajectory_auto(*velocity_override->Pin,
+    wrapper_trajectory_auto(*velocity_override->Pin,
                            start_->Pin,
                            stop_->Pin,
-                           pause_->Pin,
-                           resume_->Pin,
-                           *max_velocity->Pin,*max_acceleration->Pin,*max_jerk->Pin, start_from_gcodeblock->Pin, tcp.p.x, tcp.p.y, tcp.p.z);
+                           *max_velocity->Pin,*max_acceleration->Pin,*max_jerk->Pin, start_from_gcodeblock->Pin, run_from_line->Pin);
+
     start_->Pin=0;
     stop_->Pin=0;
-    pause_->Pin=0;
-    resume_->Pin=0;
+    run_from_line->Pin=0;
 
     *m3_out->Pin=tcp.m3;
     *m7_out->Pin=tcp.m7;
@@ -316,12 +305,13 @@ static int setup_pins(){
     load_file = (param_bit_data_t*)hal_malloc(sizeof(param_bit_data_t));
     r+=hal_param_bit_new("trajectory.load_file",HAL_RW,&(load_file->Pin),comp_idx);
 
+    load_mdi = (param_bit_data_t*)hal_malloc(sizeof(param_bit_data_t));
+    r+=hal_param_bit_new("trajectory.load_mdi",HAL_RW,&(load_mdi->Pin),comp_idx);
+
     mode_auto = (param_bit_data_t*)hal_malloc(sizeof(param_bit_data_t));
     r+=hal_param_bit_new("trajectory.mode_auto",HAL_RW,&(mode_auto->Pin),comp_idx);
     mode_jog = (param_bit_data_t*)hal_malloc(sizeof(param_bit_data_t));
     r+=hal_param_bit_new("trajectory.mode_jog",HAL_RW,&(mode_jog->Pin),comp_idx);
-    mode_mdi = (param_bit_data_t*)hal_malloc(sizeof(param_bit_data_t));
-    r+=hal_param_bit_new("trajectory.mode_mdi",HAL_RW,&(mode_mdi->Pin),comp_idx);
 
     //! Jog input pins.
     jog_x_plus = (param_bit_data_t*)hal_malloc(sizeof(param_bit_data_t));
@@ -361,11 +351,8 @@ static int setup_pins(){
     stop_ = (param_bit_data_t*)hal_malloc(sizeof(param_bit_data_t));
     r+=hal_param_bit_new("trajectory.stop",HAL_RW,&(stop_->Pin),comp_idx);
 
-    pause_ = (param_bit_data_t*)hal_malloc(sizeof(param_bit_data_t));
-    r+=hal_param_bit_new("trajectory.pause",HAL_RW,&(pause_->Pin),comp_idx);
-
-    resume_ = (param_bit_data_t*)hal_malloc(sizeof(param_bit_data_t));
-    r+=hal_param_bit_new("trajectory.resume",HAL_RW,&(resume_->Pin),comp_idx);
+    run_from_line = (param_bit_data_t*)hal_malloc(sizeof(param_bit_data_t));
+    r+=hal_param_bit_new("trajectory.run_from_line",HAL_RW,&(run_from_line->Pin),comp_idx);
 
     //! Input parameter, type float.
     start_from_gcodeblock = (param_float_data_t*)hal_malloc(sizeof(param_float_data_t));

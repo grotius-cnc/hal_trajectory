@@ -25,17 +25,18 @@ struct TCP tcp;
 
 // C module functions:
 extern void wrapper_load_gcode();
+extern void wrapper_load_mdi();
+
 //! Mode auto.
-extern struct TCP wrapper_trajectory_auto(double velocity_override,
-                                          bool start, bool stop, bool pause, bool resume,
+extern void wrapper_trajectory_auto(double velocity_override,
+                                          bool start, bool stop,
                                           double vel, double acc, double jerk,
-                                          unsigned int startfromblock, double tcp_x, double tcp_y, double tcp_z);
+                                          unsigned int startfromblock, bool run_from_line);
 
 //! Mode jog. jog_x = 1 (positive move) )or -1 (negative move)
-extern struct TCP wrapper_trajectory_jog(int jog_x, int jog_y, int jog_z,
-                                         int jog_euler_x, int jog_euler_y, int jog_euler_z,
-                                         double vel, double acc, double jerk,
-                                         double tcp_x, double tcp_y, double tcp_z,
-                                         double tcp_euler_x, double tcp_euler_y, double tcp_euler_z);
+extern void wrapper_trajectory_jog(int jog_x, int jog_y, int jog_z,
+                                         double vel, double acc, double jerk);
+
+extern struct TCP get_tcp();
 
 #endif // HALMODULE_H

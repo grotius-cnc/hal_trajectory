@@ -74,15 +74,15 @@ cd $LINUXCNC_DIR/scripts && . ./rip-environment
         halcmd setp trajectory.tcp_offset_z 500
 
         # set standard values.
-        halcmd setp trajectory.max_velocity 200
-        halcmd setp trajectory.max_acceleration 100
-        halcmd setp trajectory.max_jerk 50
+        halcmd setp trajectory.max_velocity 100
+        halcmd setp trajectory.max_acceleration 90
+        halcmd setp trajectory.max_jerk 500
         halcmd setp trajectory.velocity_override 1.0
         halcmd setp trajectory.enable 1
 
-        halcmd setp trajectory.mode_auto 0
-        halcmd setp trajectory.mode_jog 1
-        halcmd setp trajectory.mode_mdi 0
+        halcmd setp trajectory.mode_auto 1
+        #halcmd setp trajectory.mode_jog 0
+        #halcmd setp trajectory.mode_mdi 0
 
  	# Start hal programs to debug:
         # halmeter
