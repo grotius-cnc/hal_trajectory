@@ -36,13 +36,10 @@ public:
 public slots:
 
     void mode_auto();
-    void mode_mdi();
     void mode_jog();
 
     void mode_auto_run_pressed();
     void mode_auto_stop_pressed();
-    void mode_auto_pause_pressed();
-    void mode_auto_resume_pressed();
 
     void jog_x_plus_pressed();
     void jog_x_min_pressed();
@@ -50,12 +47,6 @@ public slots:
     void jog_y_min_pressed();
     void jog_z_plus_pressed();
     void jog_z_min_pressed();
-    void jog_euler_x_plus_pressed();
-    void jog_euler_x_min_pressed();
-    void jog_euler_y_plus_pressed();
-    void jog_euler_y_min_pressed();
-    void jog_euler_z_plus_pressed();
-    void jog_euler_z_min_pressed();
 
     void jog_x_plus_released();
     void jog_x_min_released();
@@ -63,12 +54,6 @@ public slots:
     void jog_y_min_released();
     void jog_z_plus_released();
     void jog_z_min_released();
-    void jog_euler_x_plus_released();
-    void jog_euler_x_min_released();
-    void jog_euler_y_plus_released();
-    void jog_euler_y_min_released();
-    void jog_euler_z_plus_released();
-    void jog_euler_z_min_released();
 
     void loadfile();
     void gcodeblock();
@@ -82,9 +67,15 @@ public slots:
     void m8_on();
     void m8_off();
     void power_rpm();
-
+    void load_mdi();
 
 private:
     Ui::MainWindow *ui;
+
+    QString darkgrey="background-color: rgba(65, 65, 65, 0);\ncolor: rgb(255, 255, 255);";
+    QString green="background-color: rgba(170, 255, 0, 0);\ncolor: rgb(0, 0, 0);";
+    QString red="background-color: rgba(242, 0, 0, 0);\ncolor: rgb(0, 0, 0);";
+    QString orange="background-color: rgba(255, 170, 0, 0);\ncolor: rgb(0, 0, 0);";
+    QString grey="background-color: rgba(81, 81, 81, 0);\ncolor: rgb(255, 255, 255);";
 };
 #endif // MAINWINDOW_H

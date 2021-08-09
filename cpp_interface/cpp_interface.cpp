@@ -1,40 +1,5 @@
 #include "cpp_interface.h"
 
-//! auto mode
-ruckig::Ruckig<1> otg {0.001};
-ruckig::InputParameter<1> in;
-ruckig::OutputParameter<1> out;
-std::array<double, 1> position, velocity, acceleration;
-std::array<double, 1> rapid_position, rapid_velocity, rapid_acceleration;
-
-//! jog mode
-//! xyz axis
-ruckig::Ruckig<1> otg_x {0.001};
-ruckig::Ruckig<1> otg_y {0.001};
-ruckig::Ruckig<1> otg_z {0.001};
-ruckig::InputParameter<1> in_x;
-ruckig::OutputParameter<1> out_x;
-ruckig::InputParameter<1> in_y;
-ruckig::OutputParameter<1> out_y;
-ruckig::InputParameter<1> in_z;
-ruckig::OutputParameter<1> out_z;
-std::array<double, 1> jog_x_position, jog_x_velocity, jog_x_acceleration;
-std::array<double, 1> jog_y_position, jog_y_velocity, jog_y_acceleration;
-std::array<double, 1> jog_z_position, jog_z_velocity, jog_z_acceleration;
-//! euler xyz axis
-ruckig::Ruckig<1> otg_ex {0.001};
-ruckig::Ruckig<1> otg_ey {0.001};
-ruckig::Ruckig<1> otg_ez {0.001};
-ruckig::InputParameter<1> in_ex;
-ruckig::OutputParameter<1> out_ex;
-ruckig::InputParameter<1> in_ey;
-ruckig::OutputParameter<1> out_ey;
-ruckig::InputParameter<1> in_ez;
-ruckig::OutputParameter<1> out_ez;
-std::array<double, 1> jog_euler_x_position, jog_euler_x_velocity, jog_euler_x_acceleration;
-std::array<double, 1> jog_euler_y_position, jog_euler_y_velocity, jog_euler_y_acceleration;
-std::array<double, 1> jog_euler_z_position, jog_euler_z_velocity, jog_euler_z_acceleration;
-
 //! Different types of gcode operations.
 enum BLOCKTYPE {
     G0,
@@ -73,8 +38,7 @@ bool trigger_start=0;
 bool trigger_pvi=0;
 bool trigger_in_position=0;
 bool trigger_stop=0;
-bool trigger_pause=0;
-bool trigger_resume=0;
+bool trigger_run_from_line=0;
 POINT a,b;
 double gcode_velocity=0;
 
@@ -84,6 +48,27 @@ double arc_lenght(BLOCK arc);
 POINT interpolate_line(BLOCK line, double distancetogo, bool debug);
 POINT interpolate_arc(BLOCK arc, double distancetogo, bool debug);
 void open_gcode_file(std::string filename, bool debug);
+
+ruckig::Ruckig<1> otg {0.001};
+ruckig::InputParameter<1> in;
+ruckig::OutputParameter<1> out;
+std::array<double, 1> position, velocity, acceleration;
+std::array<double, 1> rapid_position, rapid_velocity, rapid_acceleration;
+
+//! jog mode
+//! xyz axis
+ruckig::Ruckig<1> otg_x {0.001};
+ruckig::Ruckig<1> otg_y {0.001};
+ruckig::Ruckig<1> otg_z {0.001};
+ruckig::InputParameter<1> in_x;
+ruckig::OutputParameter<1> out_x;
+ruckig::InputParameter<1> in_y;
+ruckig::OutputParameter<1> out_y;
+ruckig::InputParameter<1> in_z;
+ruckig::OutputParameter<1> out_z;
+std::array<double, 1> jog_x_position, jog_x_velocity, jog_x_acceleration;
+std::array<double, 1> jog_y_position, jog_y_velocity, jog_y_acceleration;
+std::array<double, 1> jog_z_position, jog_z_velocity, jog_z_acceleration;
 
 Cpp_interface::Cpp_interface()
 {
@@ -116,51 +101,43 @@ void Cpp_interface::load_gcode(char *name){
 //!     max_velocity, results in forward- or backward path move.
 //!     max_acceleration
 //!     max_jerk
-TCP Cpp_interface::trajectory_auto(double velocity_override,
-                                   bool start, bool stop, bool pause, bool resume,
+void Cpp_interface::trajectory_auto(double velocity_override,
+                                   bool start, bool stop,
                                    double vel, double acc, double jerk,
-                                   unsigned int startfromblock, double tcp_x, double tcp_y, double tcp_z){
+                                   unsigned int startfromblock, bool run_from_line){
 
-    TCP tcp;
+    POINT p;
+    if(run_from_line){
+        trigger_run_from_line=1;
+    }
+    if(trigger_run_from_line){
+        trigger_pvi=0;
+        trigger_in_position=0;
+        trigger_run_from_line=0;
+        trigger_start=0;
+    }
+
     if(start){ // Stop current move with dcc path, and start again.
         trigger_start=1;
-
+    }
+    if(trigger_start){
         tcp.m3=0;
         tcp.m7=0;
         tcp.m8=0;
-    }
-    if(trigger_start){
-        trigger_pvi=0;
-        trigger_in_position=0;
+
+        trigger_stop=0;
         trigger_start=0;
-        trigger_pause=0;
     }
 
     if(stop){
         trigger_stop=1;
-
+    }
+    if(trigger_stop){
         tcp.m3=0;
         tcp.m7=0;
         tcp.m8=0;
-    }
-    if(trigger_stop){
         vel=0;
-    }
-
-    if(pause){
-        trigger_pause=1;
-    }
-    if(trigger_pause){
-        vel=0;
-    }
-
-    if(resume){
-        trigger_resume=1;
-    }
-    if(trigger_resume){
-        trigger_pause=0;
-        trigger_stop=0;
-        trigger_resume=0;
+        trigger_start=0;
     }
 
     if(pathvec.size()>0){
@@ -181,7 +158,7 @@ TCP Cpp_interface::trajectory_auto(double velocity_override,
                 }
             }
 
-            a={tcp_x,tcp_y,tcp_z};
+            a={tcp.p.x,tcp.p.y,tcp.p.z};
             b=pathvec.at(pvi).blockvec.front().start;
             rapid_position[0]=0; // set the rapic pathlenght to begin position;
             position[0]=0;
@@ -213,11 +190,10 @@ TCP Cpp_interface::trajectory_auto(double velocity_override,
 
             // If in position, end this function.  double blocklenght=pathvec.at(pvi).blockvec.at(i).blocklenght;
             double distancetogo=rapid.blocklenght-rapid_position[0];
-            POINT p=interpolate_line(rapid,distancetogo,0);
+            p=interpolate_line(rapid,distancetogo,0);
             // std::cout<<"Moving to program start position p.x: "<<p.x<<" p.y:"<<p.y<<" p.z:"<<p.z<<std::endl;
-            tcp.p=p;
-            tcp.vel=rapid_velocity[0];
-            tcp.acc=rapid_acceleration[0];
+            //tcp.vel=rapid_velocity[0];
+            //tcp.acc=rapid_acceleration[0];
 
             // Forward destiny reached, increment to "next" path, if there is one.
             if(rapid_position[0]>rapid.blocklenght-1){
@@ -257,7 +233,7 @@ TCP Cpp_interface::trajectory_auto(double velocity_override,
             // One ms forward.
             out.trajectory.at_time(0.001, position, velocity, acceleration);
             // For ocsilloscope output.
-            tcp.pos=position[0]; // std::cout<<"tcp pos: "<<tcp.pos<<std::endl;
+            // tcp_auto.pos=position[0]; // std::cout<<"tcp pos: "<<tcp.pos<<std::endl;
 
             // Gcode block that is currently in use, output is interpolated xyz position.
             double lenght=0;
@@ -288,13 +264,11 @@ TCP Cpp_interface::trajectory_auto(double velocity_override,
                     double distancetogo=blocklenght-blockpos;
 
                     // Interpolate xyz coordinates of the gcode primitive given the distancetogo.
-                    POINT p;
                     if(pathvec.at(pvi).blockvec.at(i).blocktype==BLOCKTYPE::G0 || pathvec.at(pvi).blockvec.at(i).blocktype==BLOCKTYPE::G1){
                         p=interpolate_line(pathvec.at(pvi).blockvec.at(i),distancetogo,0);
                         // std::cout<<"line p.x: "<<p.x<<" p.y:"<<p.y<<" p.z:"<<p.z<<std::endl;
-                        tcp.p=p;
-                        tcp.vel=velocity[0];
-                        tcp.acc=acceleration[0];
+                        // tcp.vel=velocity[0];
+                        //tcp.acc=acceleration[0];
 
                         if(pathvec.at(pvi).blockvec.at(i).mcode==3){
                             tcp.m3=1;
@@ -321,9 +295,8 @@ TCP Cpp_interface::trajectory_auto(double velocity_override,
                     if(pathvec.at(pvi).blockvec.at(i).blocktype==BLOCKTYPE::G2 || pathvec.at(pvi).blockvec.at(i).blocktype==BLOCKTYPE::G3){
                         p=interpolate_arc(pathvec.at(pvi).blockvec.at(i),distancetogo,0);
                         // std::cout<<"arc p.x: "<<p.x<<" p.y:"<<p.y<<" p.z:"<<p.z<<std::endl;
-                        tcp.p=p;
-                        tcp.vel=velocity[0];
-                        tcp.acc=acceleration[0];
+                        //tcp.vel=velocity[0];
+                        //tcp.acc=acceleration[0];
 
                         if(pathvec.at(pvi).blockvec.at(i).mcode==3){
                             tcp.m3=1;
@@ -379,7 +352,7 @@ TCP Cpp_interface::trajectory_auto(double velocity_override,
             // std::cout<<"acc:"<<acceleration[0]<<std::endl;
         }
     }
-    return tcp;
+    trajectory_jog_auto(p.x,p.y,p.z,7500,5000,2500);
 }
 
 //! C module function wrappers:
@@ -388,150 +361,91 @@ extern "C" void wrapper_load_gcode(char* name){ // C to cpp wrapper function
 }
 
 //! C module function wrappers:
-extern "C" TCP wrapper_trajectory_auto(double velocity_override,
-                                       bool start, bool stop, bool pause, bool resume,
+extern "C" void wrapper_trajectory_auto(double velocity_override,
+                                       bool start, bool stop,
                                        double vel, double acc, double jerk,
-                                       unsigned int startfromblock, double tcp_x, double tcp_y, double tcp_z){ // C to cpp wrapper function
-    TCP p=Cpp_interface().trajectory_auto(velocity_override,
-                                          start, stop, pause, resume,
+                                       unsigned int startfromblock, bool run_from_line){ // C to cpp wrapper function
+    Cpp_interface().trajectory_auto(velocity_override,
+                                          start, stop,
                                           vel, acc, jerk,
-                                          startfromblock, tcp_x, tcp_y, tcp_z);
-    return p;
+                                          startfromblock, run_from_line);
 }
 
 //! Mode jog.
-TCP Cpp_interface::trajectory_jog(int jog_x, int jog_y, int jog_z,
-                                  int jog_euler_x, int jog_euler_y, int jog_euler_z,
-                                  double vel, double acc, double jerk,
-                                  double tcp_x, double tcp_y, double tcp_z,
-                                  double tcp_euler_x, double tcp_euler_y, double tcp_euler_z){
+void Cpp_interface::trajectory_jog_auto(double x, double y, double z,
+                                  double vel, double acc, double jerk){
 
     // For each axis we use a seperate ruckig trajectory planner.
-    TCP tcp;
     double velx=vel;
     double vely=vel;
     double velz=vel;
-    tcp.p.x=tcp_x;
-    tcp.p.y=tcp_y;
-    tcp.p.z=tcp_z;
 
-    double velex=vel;
-    double veley=vel;
-    double velez=vel;
-    tcp.e.euler_x=tcp_euler_x;
-    tcp.e.euler_y=tcp_euler_y;
-    tcp.e.euler_z=tcp_euler_z;
+    // Jog x ******************
+    in_x.max_velocity[0]=abs(velx);
+    in_x.max_acceleration[0]=acc;
+    in_x.max_jerk[0]=jerk;
+    in_x.current_position[0]=tcp.p.x;
+    in_x.current_velocity[0]=jog_x_velocity[0];
+    in_x.current_acceleration[0]=jog_x_acceleration[0];
+    in_x.target_velocity[0]=0;
+    in_x.target_acceleration[0]=0;
+    in_x.target_position[0]=x;
 
-    // Jog euler x ******************
-    if(jog_euler_x==0){
-        velex=0.0001;
-        if(jog_euler_x_velocity[0]<0.001 && jog_euler_x_velocity[0]>0.000){
-            velex=0;
-        }
-        // std::cout<<"stop the jog move"<<std::endl;
-    }
-    double dex;
-    if(jog_euler_x>0){
-        dex=2*M_PI;
-        // std::cout<<"jog euler x+"<<std::endl;
-    }
-    if(jog_euler_x<0){
-        dex=-(2/M_PI);
-        // std::cout<<"jog euler x-"<<std::endl;
-    }
-
-    in_ex.max_velocity[0]=abs(velex);
-    in_ex.max_acceleration[0]=acc;
-    in_ex.max_jerk[0]=jerk;
-    in_ex.current_position[0]=tcp.e.euler_x;
-    in_ex.current_velocity[0]=jog_euler_x_velocity[0];
-    in_ex.current_acceleration[0]=jog_euler_x_acceleration[0];
-    in_ex.target_velocity[0]=0;
-    in_ex.target_acceleration[0]=0;
-    in_ex.target_position[0]=jog_euler_x_position[0]+dex;
-
-    auto result_ex = otg_ex.update(in_ex, out_ex);
-    result_ex = ruckig::Result::Working;
+    auto result_x = otg_x.update(in_x, out_x);
+    result_x = ruckig::Result::Working;
 
     // One ms forward.
-    out_ex.trajectory.at_time(0.001, jog_euler_x_position, jog_euler_x_velocity, jog_euler_x_acceleration);
-    tcp.e.euler_x=jog_euler_x_position[0];
-    // std::cout<<"vel jog euler x: "<<jog_euler_x_velocity[0]<<std::endl;
+    out_x.trajectory.at_time(0.001, jog_x_position, jog_x_velocity, jog_x_acceleration);
+    tcp.p.x=jog_x_position[0];
+    // std::cout<<"vel jog x: "<<jog_x_velocity[0]<<std::endl;
 
+    // Jog y ******************
+    in_y.max_velocity[0]=abs(vely);
+    in_y.max_acceleration[0]=acc;
+    in_y.max_jerk[0]=jerk;
+    in_y.current_position[0]=tcp.p.y;
+    in_y.current_velocity[0]=jog_y_velocity[0];
+    in_y.current_acceleration[0]=jog_y_acceleration[0];
+    in_y.target_velocity[0]=0;
+    in_y.target_acceleration[0]=0;
+    in_y.target_position[0]=y;
 
-    // Jog euler y ******************
-    if(jog_euler_y==0){
-        veley=0.0001;
-        if(jog_euler_y_velocity[0]<0.001 && jog_euler_y_velocity[0]>0.000){
-            veley=0;
-        }
-        // std::cout<<"stop the jog move"<<std::endl;
-    }
-    double dey;
-    if(jog_euler_y>0){
-        dey=2*M_PI;
-        // std::cout<<"jog euler y+"<<std::endl;
-    }
-    if(jog_euler_y<0){
-        dey=-(2/M_PI);
-        // std::cout<<"jog euler y-"<<std::endl;
-    }
-
-    in_ey.max_velocity[0]=abs(veley);
-    in_ey.max_acceleration[0]=acc;
-    in_ey.max_jerk[0]=jerk;
-    in_ey.current_position[0]=tcp.e.euler_y;
-    in_ey.current_velocity[0]=jog_euler_y_velocity[0];
-    in_ey.current_acceleration[0]=jog_euler_y_acceleration[0];
-    in_ey.target_velocity[0]=0;
-    in_ey.target_acceleration[0]=0;
-    in_ey.target_position[0]=jog_euler_y_position[0]+dey;
-
-    auto result_ey = otg_ey.update(in_ey, out_ey);
-    result_ey = ruckig::Result::Working;
+    auto result_y = otg_y.update(in_y, out_y);
+    result_y = ruckig::Result::Working;
 
     // One ms forward.
-    out_ey.trajectory.at_time(0.001, jog_euler_y_position, jog_euler_y_velocity, jog_euler_y_acceleration);
-    tcp.e.euler_y=jog_euler_y_position[0];
-    // std::cout<<"vel jog euler y: "<<jog_euler_y_velocity[0]<<std::endl;
+    out_y.trajectory.at_time(0.001, jog_y_position, jog_y_velocity, jog_y_acceleration);
+    tcp.p.y=jog_y_position[0];
+    // std::cout<<"vel jog y: "<<jog_y_velocity[0]<<std::endl;
 
+    // Jog z ******************
+    in_z.max_velocity[0]=abs(velz);
+    in_z.max_acceleration[0]=acc;
+    in_z.max_jerk[0]=jerk;
+    in_z.current_position[0]=tcp.p.z;
+    in_z.current_velocity[0]=jog_z_velocity[0];
+    in_z.current_acceleration[0]=jog_z_acceleration[0];
+    in_z.target_velocity[0]=0;
+    in_z.target_acceleration[0]=0;
+    in_z.target_position[0]=z;
 
-    // Jog euler z ******************
-    if(jog_euler_z==0){
-        velez=0.0001;
-        if(jog_euler_z_velocity[0]<0.001 && jog_euler_z_velocity[0]>0.000){
-            velez=0;
-        }
-        // std::cout<<"stop the jog move"<<std::endl;
-    }
-    double dez;
-    if(jog_euler_z>0){
-        dez=2*M_PI;
-        // std::cout<<"jog euler z+"<<std::endl;
-    }
-    if(jog_euler_z<0){
-        dez=-(2/M_PI);
-        // std::cout<<"jog euler z-"<<std::endl;
-    }
-
-    in_ez.max_velocity[0]=abs(velez);
-    in_ez.max_acceleration[0]=acc;
-    in_ez.max_jerk[0]=jerk;
-    in_ez.current_position[0]=tcp.e.euler_z;
-    in_ez.current_velocity[0]=jog_euler_z_velocity[0];
-    in_ez.current_acceleration[0]=jog_euler_z_acceleration[0];
-    in_ez.target_velocity[0]=0;
-    in_ez.target_acceleration[0]=0;
-    in_ez.target_position[0]=jog_euler_z_position[0]+dez;
-
-    auto result_ez = otg_ez.update(in_ez, out_ez);
-    result_ez = ruckig::Result::Working;
+    auto result_z = otg_z.update(in_z, out_z);
+    result_z = ruckig::Result::Working;
 
     // One ms forward.
-    out_ez.trajectory.at_time(0.001, jog_euler_z_position, jog_euler_z_velocity, jog_euler_z_acceleration);
-    tcp.e.euler_z=jog_euler_z_position[0];
-    // std::cout<<"vel jog euler z: "<<jog_euler_z_velocity[0]<<std::endl;
+    out_z.trajectory.at_time(0.001, jog_z_position, jog_z_velocity, jog_z_acceleration);
+    tcp.p.z=jog_z_position[0];
+    // std::cout<<"vel jog z: "<<jog_z_velocity[0]<<std::endl;
+}
 
+//! Mode jog.
+void Cpp_interface::trajectory_jog(int jog_x, int jog_y, int jog_z,
+                                  double vel, double acc, double jerk){
+
+    // For each axis we use a seperate ruckig trajectory planner.
+    double velx=vel;
+    double vely=vel;
+    double velz=vel;
 
     // Jog x ******************
     if(jog_x==0){
@@ -555,7 +469,6 @@ TCP Cpp_interface::trajectory_jog(int jog_x, int jog_y, int jog_z,
     in_x.max_acceleration[0]=acc;
     in_x.max_jerk[0]=jerk;
     in_x.current_position[0]=tcp.p.x;
-    jog_x_position[0]=tcp.p.x;
     in_x.current_velocity[0]=jog_x_velocity[0];
     in_x.current_acceleration[0]=jog_x_acceleration[0];
     in_x.target_velocity[0]=0;
@@ -563,7 +476,7 @@ TCP Cpp_interface::trajectory_jog(int jog_x, int jog_y, int jog_z,
     in_x.target_position[0]=jog_x_position[0]+dx;
 
     auto result_x = otg_x.update(in_x, out_x);
-    result_x = ruckig::Result::Working;
+    result_x = ruckig::Result::Finished;
 
     // One ms forward.
     out_x.trajectory.at_time(0.001, jog_x_position, jog_x_velocity, jog_x_acceleration);
@@ -592,7 +505,6 @@ TCP Cpp_interface::trajectory_jog(int jog_x, int jog_y, int jog_z,
     in_y.max_acceleration[0]=acc;
     in_y.max_jerk[0]=jerk;
     in_y.current_position[0]=tcp.p.y;
-    jog_y_position[0]=tcp.p.y;
     in_y.current_velocity[0]=jog_y_velocity[0];
     in_y.current_acceleration[0]=jog_y_acceleration[0];
     in_y.target_velocity[0]=0;
@@ -600,7 +512,7 @@ TCP Cpp_interface::trajectory_jog(int jog_x, int jog_y, int jog_z,
     in_y.target_position[0]=jog_y_position[0]+dy;
 
     auto result_y = otg_y.update(in_y, out_y);
-    result_y = ruckig::Result::Working;
+    result_y = ruckig::Result::Finished;
 
     // One ms forward.
     out_y.trajectory.at_time(0.001, jog_y_position, jog_y_velocity, jog_y_acceleration);
@@ -629,7 +541,6 @@ TCP Cpp_interface::trajectory_jog(int jog_x, int jog_y, int jog_z,
     in_z.max_acceleration[0]=acc;
     in_z.max_jerk[0]=jerk;
     in_z.current_position[0]=tcp.p.z;
-    jog_z_position[0]=tcp.p.z;
     in_z.current_velocity[0]=jog_z_velocity[0];
     in_z.current_acceleration[0]=jog_z_acceleration[0];
     in_z.target_velocity[0]=0;
@@ -637,27 +548,22 @@ TCP Cpp_interface::trajectory_jog(int jog_x, int jog_y, int jog_z,
     in_z.target_position[0]=jog_z_position[0]+dz;
 
     auto result_z = otg_z.update(in_z, out_z);
-    result_z = ruckig::Result::Working;
+    result_z = ruckig::Result::Finished;
 
     // One ms forward.
     out_z.trajectory.at_time(0.001, jog_z_position, jog_z_velocity, jog_z_acceleration);
     tcp.p.z=jog_z_position[0];
     // std::cout<<"vel jog z: "<<jog_z_velocity[0]<<std::endl;
-
-    return tcp;
 }
 
-extern "C" TCP wrapper_trajectory_jog(int jog_x, int jog_y, int jog_z,
-                                      int jog_euler_x, int jog_euler_y, int jog_euler_z,
-                                      double vel, double acc, double jerk,
-                                      double tcp_x, double tcp_y, double tcp_z,
-                                      double tcp_euler_x, double tcp_euler_y, double tcp_euler_z){
-    TCP p=Cpp_interface().trajectory_jog(jog_x, jog_y, jog_z,
-                                         jog_euler_x, jog_euler_y, jog_euler_z,
-                                         vel, acc, jerk,
-                                         tcp_x, tcp_y, tcp_z,
-                                         tcp_euler_x, tcp_euler_y, tcp_euler_z);
-    return p;
+extern "C" void wrapper_trajectory_jog(int jog_x, int jog_y, int jog_z,
+                                      double vel, double acc, double jerk){
+    Cpp_interface().trajectory_jog(jog_x, jog_y, jog_z,
+                                         vel, acc, jerk);
+}
+
+extern "C" TCP get_tcp(){
+    return tcp;
 }
 
 //! Helper functions
@@ -1077,6 +983,7 @@ void open_gcode_file(std::string filename, bool debug){
         }
     }
 }
+
 
 
 

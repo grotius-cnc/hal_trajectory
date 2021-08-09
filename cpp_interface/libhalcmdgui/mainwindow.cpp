@@ -14,12 +14,9 @@ MainWindow::MainWindow(QWidget *parent)
     ui->setupUi(this);
 
     QObject::connect(ui->pushButton_mode_auto, SIGNAL(pressed()),SLOT(mode_auto()));
-    QObject::connect(ui->pushButton_mode_mdi, SIGNAL(pressed()),SLOT(mode_mdi()));
     QObject::connect(ui->pushButton_mode_jog, SIGNAL(pressed()),SLOT(mode_jog()));
 
     QObject::connect(ui->pushButton_mode_auto_start, SIGNAL(pressed()),SLOT(mode_auto_run_pressed()));
-    QObject::connect(ui->pushButton_mode_auto_pause, SIGNAL(pressed()),SLOT(mode_auto_pause_pressed()));
-    QObject::connect(ui->pushButton_mode_auto_resume, SIGNAL(pressed()),SLOT(mode_auto_resume_pressed()));
     QObject::connect(ui->pushButton_mode_auto_stop, SIGNAL(pressed()),SLOT(mode_auto_stop_pressed()));
 
     QObject::connect(ui->pushButton_jog_x_plus, SIGNAL(pressed()),SLOT(jog_x_plus_pressed()));
@@ -36,20 +33,6 @@ MainWindow::MainWindow(QWidget *parent)
     QObject::connect(ui->pushButton_jog_z_plus, SIGNAL(released()),SLOT(jog_z_plus_released()));
     QObject::connect(ui->pushButton_jog_z_min, SIGNAL(released()),SLOT(jog_z_min_released()));
 
-    QObject::connect(ui->pushButton_jog_euler_x_plus, SIGNAL(pressed()),SLOT(jog_euler_x_plus_pressed()));
-    QObject::connect(ui->pushButton_jog_euler_x_min, SIGNAL(pressed()),SLOT(jog_euler_x_min_pressed()));
-    QObject::connect(ui->pushButton_jog_euler_y_plus, SIGNAL(pressed()),SLOT(jog_euler_y_plus_pressed()));
-    QObject::connect(ui->pushButton_jog_euler_y_min, SIGNAL(pressed()),SLOT(jog_euler_y_min_pressed()));
-    QObject::connect(ui->pushButton_jog_euler_z_plus, SIGNAL(pressed()),SLOT(jog_euler_z_plus_pressed()));
-    QObject::connect(ui->pushButton_jog_euler_z_min, SIGNAL(pressed()),SLOT(jog_euler_z_min_pressed()));
-
-    QObject::connect(ui->pushButton_jog_euler_x_plus, SIGNAL(released()),SLOT(jog_euler_x_plus_released()));
-    QObject::connect(ui->pushButton_jog_euler_x_min, SIGNAL(released()),SLOT(jog_euler_x_min_released()));
-    QObject::connect(ui->pushButton_jog_euler_y_plus, SIGNAL(released()),SLOT(jog_euler_y_plus_released()));
-    QObject::connect(ui->pushButton_jog_euler_y_min, SIGNAL(released()),SLOT(jog_euler_y_min_released()));
-    QObject::connect(ui->pushButton_jog_euler_z_plus, SIGNAL(released()),SLOT(jog_euler_z_plus_released()));
-    QObject::connect(ui->pushButton_jog_euler_z_min, SIGNAL(released()),SLOT(jog_euler_z_min_released()));
-
     QObject::connect(ui->pushButton_load_gcode_file, SIGNAL(pressed()),SLOT(loadfile()));
     QObject::connect(ui->pushButton_run_from_line, SIGNAL(pressed()),SLOT(gcodeblock()));
 
@@ -64,6 +47,7 @@ MainWindow::MainWindow(QWidget *parent)
     QObject::connect(ui->pushButton_m8_off, SIGNAL(pressed()),SLOT(m8_off()));
 
     QObject::connect(ui->pushButton_power_rpm, SIGNAL(pressed()),SLOT(power_rpm()));
+    QObject::connect(ui->pushButton_load_mdi, SIGNAL(pressed()),SLOT(load_mdi()));
 
     // Setup a hal_port sender.
     comp_id = hal_init("gui");
@@ -86,6 +70,44 @@ MainWindow::~MainWindow()
     std::cout<<"exit"<<std::endl;
 
     delete ui;
+}
+
+#include <fstream>
+#include <libskynet/directory.h>
+void MainWindow::load_mdi(){
+
+    // No auto mode to prevent a vector crash.
+    std::string path_to_lcnc_bin=ui->lineEdit_path_to_lcnc_bin->text().toStdString();
+    std::string command, result;
+
+    std::string mdi_filename="mdi.ngc";
+
+    // Clear mdi textfile.
+    std::ofstream myfile;
+    myfile.open(mdi_filename, std::ios::out); //ios::app = append true, ios::out = new
+    myfile<<"";
+    myfile.close();
+
+    // Fill mdi textfile.
+    myfile.open(mdi_filename, std::ios::app); //ios::app = append true, ios::out = new
+    myfile.precision(3);
+    myfile<<std::fixed;
+    myfile<<ui->lineEdit_mdi->text().toStdString();
+    myfile.close();
+
+    // Get current directory.
+    char* cwd = getcwd( 0, 0 ) ; // **** microsoft specific ****
+    std::string working_directory(cwd) ;
+    std::free(cwd) ;
+    result=working_directory+"/"+mdi_filename;
+
+    // Let the trajectory component know where the mdi file is.
+    hal_port_write(*port->Pin,result.c_str(),140);
+
+    // Load the mdi file into the trajectory component.
+    command="/bin/./halcmd setp trajectory.load_mdi 1";
+    result=path_to_lcnc_bin+command;
+    system(result.c_str());
 }
 
 void MainWindow::power_rpm(){
@@ -204,9 +226,24 @@ void MainWindow::gcodeblock(){
     value=ui->lineEdit_run_from_line->text().toInt();
     result=path_to_lcnc_bin+command+std::to_string(value);
     system(result.c_str());
+
+    command="/bin/./halcmd setp trajectory.run_from_line 1";
+    result=path_to_lcnc_bin+command;
+    system(result.c_str());
+
+    command="/bin/./halcmd setp trajectory.start 1";
+    result=path_to_lcnc_bin+command;
+    system(result.c_str());
+
+    ui->pushButton_mode_auto_start->setStyleSheet(green);
+    ui->pushButton_mode_auto_stop->setStyleSheet(darkgrey);
 }
 
 void MainWindow::loadfile(){
+
+    // No auto mode to prevent a vector crash.
+    std::string path_to_lcnc_bin=ui->lineEdit_path_to_lcnc_bin->text().toStdString();
+    std::string command, result;
 
     //char sent[140] = { 'a' , 'l', 'i', 'e' , 'n', 0};
     //hal_port_write(*port->Pin,sent,140);
@@ -224,9 +261,6 @@ void MainWindow::loadfile(){
      hal_port_write(*port->Pin,f.result().at(0).c_str(),140);
 
      // Set the load_file pin.
-     std::string path_to_lcnc_bin=ui->lineEdit_path_to_lcnc_bin->text().toStdString();
-     std::string command, result;
-
      command="/bin/./halcmd setp trajectory.load_file 1";
      result=path_to_lcnc_bin+command;
      system(result.c_str());
@@ -240,59 +274,12 @@ void MainWindow::mode_auto_run_pressed(){
     result=path_to_lcnc_bin+command;
     system(result.c_str());
 
-    command="/bin/./halcmd setp trajectory.pause 0";
-    result=path_to_lcnc_bin+command;
-    system(result.c_str());
-
-    command="/bin/./halcmd setp trajectory.resume 0";
-    result=path_to_lcnc_bin+command;
-    system(result.c_str());
-
     command="/bin/./halcmd setp trajectory.start 1";
     result=path_to_lcnc_bin+command;
     system(result.c_str());
-}
 
-void MainWindow::mode_auto_pause_pressed(){
-    std::string path_to_lcnc_bin=ui->lineEdit_path_to_lcnc_bin->text().toStdString();
-    std::string command, result;
-
-    command="/bin/./halcmd setp trajectory.stop 0";
-    result=path_to_lcnc_bin+command;
-    system(result.c_str());
-
-    command="/bin/./halcmd setp trajectory.pause 1";
-    result=path_to_lcnc_bin+command;
-    system(result.c_str());
-
-    command="/bin/./halcmd setp trajectory.resume 0";
-    result=path_to_lcnc_bin+command;
-    system(result.c_str());
-
-    command="/bin/./halcmd setp trajectory.start 0";
-    result=path_to_lcnc_bin+command;
-    system(result.c_str());
-}
-
-void MainWindow::mode_auto_resume_pressed(){
-    std::string path_to_lcnc_bin=ui->lineEdit_path_to_lcnc_bin->text().toStdString();
-    std::string command, result;
-
-    command="/bin/./halcmd setp trajectory.stop 0";
-    result=path_to_lcnc_bin+command;
-    system(result.c_str());
-
-    command="/bin/./halcmd setp trajectory.pause 0";
-    result=path_to_lcnc_bin+command;
-    system(result.c_str());
-
-    command="/bin/./halcmd setp trajectory.resume 1";
-    result=path_to_lcnc_bin+command;
-    system(result.c_str());
-
-    command="/bin/./halcmd setp trajectory.start 0";
-    result=path_to_lcnc_bin+command;
-    system(result.c_str());
+    ui->pushButton_mode_auto_start->setStyleSheet(green);
+    ui->pushButton_mode_auto_stop->setStyleSheet(darkgrey);
 }
 
 void MainWindow::mode_auto_stop_pressed(){
@@ -303,17 +290,12 @@ void MainWindow::mode_auto_stop_pressed(){
     result=path_to_lcnc_bin+command;
     system(result.c_str());
 
-    command="/bin/./halcmd setp trajectory.pause 0";
-    result=path_to_lcnc_bin+command;
-    system(result.c_str());
-
-    command="/bin/./halcmd setp trajectory.resume 0";
-    result=path_to_lcnc_bin+command;
-    system(result.c_str());
-
     command="/bin/./halcmd setp trajectory.start 0";
     result=path_to_lcnc_bin+command;
     system(result.c_str());
+
+    ui->pushButton_mode_auto_start->setStyleSheet(darkgrey);
+    ui->pushButton_mode_auto_stop->setStyleSheet(red);
 }
 
 void MainWindow::mode_auto(){
@@ -328,26 +310,8 @@ void MainWindow::mode_auto(){
     result=path_to_lcnc_bin+command;
     system(result.c_str());
 
-    command="/bin/./halcmd setp trajectory.mode_mdi 0";
-    result=path_to_lcnc_bin+command;
-    system(result.c_str());
-}
-
-void MainWindow::mode_mdi(){
-    std::string path_to_lcnc_bin=ui->lineEdit_path_to_lcnc_bin->text().toStdString();
-    std::string command, result;
-
-    command="/bin/./halcmd setp trajectory.mode_auto 0";
-    result=path_to_lcnc_bin+command;
-    system(result.c_str());
-
-    command="/bin/./halcmd setp trajectory.mode_jog 0";
-    result=path_to_lcnc_bin+command;
-    system(result.c_str());
-
-    command="/bin/./halcmd setp trajectory.mode_mdi 1";
-    result=path_to_lcnc_bin+command;
-    system(result.c_str());
+    ui->pushButton_mode_auto->setStyleSheet(green);
+    ui->pushButton_mode_jog->setStyleSheet(darkgrey);
 }
 
 void MainWindow::mode_jog(){
@@ -362,9 +326,8 @@ void MainWindow::mode_jog(){
     result=path_to_lcnc_bin+command;
     system(result.c_str());
 
-    command="/bin/./halcmd setp trajectory.mode_mdi 0";
-    result=path_to_lcnc_bin+command;
-    system(result.c_str());
+    ui->pushButton_mode_auto->setStyleSheet(darkgrey);
+    ui->pushButton_mode_jog->setStyleSheet(green);
 }
 
 void MainWindow::jog_x_plus_pressed(){
@@ -409,48 +372,6 @@ void MainWindow::jog_z_plus_pressed(){
     system(result.c_str());
 }
 
-void MainWindow::jog_euler_x_min_pressed(){
-    std::string path_to_lcnc_bin=ui->lineEdit_path_to_lcnc_bin->text().toStdString();
-    std::string command="/bin/./halcmd setp trajectory.jog_euler_x_min 1";
-    std::string result=path_to_lcnc_bin+command;
-    system(result.c_str());
-}
-
-void MainWindow::jog_euler_x_plus_pressed(){
-    std::string path_to_lcnc_bin=ui->lineEdit_path_to_lcnc_bin->text().toStdString();
-    std::string command="/bin/./halcmd setp trajectory.jog_euler_x_plus 1";
-    std::string result=path_to_lcnc_bin+command;
-    system(result.c_str());
-}
-
-void MainWindow::jog_euler_y_min_pressed(){
-    std::string path_to_lcnc_bin=ui->lineEdit_path_to_lcnc_bin->text().toStdString();
-    std::string command="/bin/./halcmd setp trajectory.jog_euler_y_min 1";
-    std::string result=path_to_lcnc_bin+command;
-    system(result.c_str());
-}
-
-void MainWindow::jog_euler_y_plus_pressed(){
-    std::string path_to_lcnc_bin=ui->lineEdit_path_to_lcnc_bin->text().toStdString();
-    std::string command="/bin/./halcmd setp trajectory.jog_euler_y_plus 1";
-    std::string result=path_to_lcnc_bin+command;
-    system(result.c_str());
-}
-
-void MainWindow::jog_euler_z_min_pressed(){
-    std::string path_to_lcnc_bin=ui->lineEdit_path_to_lcnc_bin->text().toStdString();
-    std::string command="/bin/./halcmd setp trajectory.jog_euler_z_min 1";
-    std::string result=path_to_lcnc_bin+command;
-    system(result.c_str());
-}
-
-void MainWindow::jog_euler_z_plus_pressed(){
-    std::string path_to_lcnc_bin=ui->lineEdit_path_to_lcnc_bin->text().toStdString();
-    std::string command="/bin/./halcmd setp trajectory.jog_euler_z_plus 1";
-    std::string result=path_to_lcnc_bin+command;
-    system(result.c_str());
-}
-
 void MainWindow::jog_x_plus_released(){
     std::string path_to_lcnc_bin=ui->lineEdit_path_to_lcnc_bin->text().toStdString();
     std::string command="/bin/./halcmd setp trajectory.jog_x_plus 0";
@@ -489,48 +410,6 @@ void MainWindow::jog_z_min_released(){
 void MainWindow::jog_z_plus_released(){
     std::string path_to_lcnc_bin=ui->lineEdit_path_to_lcnc_bin->text().toStdString();
     std::string command="/bin/./halcmd setp trajectory.jog_z_plus 0";
-    std::string result=path_to_lcnc_bin+command;
-    system(result.c_str());
-}
-
-void MainWindow::jog_euler_x_min_released(){
-    std::string path_to_lcnc_bin=ui->lineEdit_path_to_lcnc_bin->text().toStdString();
-    std::string command="/bin/./halcmd setp trajectory.jog_euler_x_min 0";
-    std::string result=path_to_lcnc_bin+command;
-    system(result.c_str());
-}
-
-void MainWindow::jog_euler_x_plus_released(){
-    std::string path_to_lcnc_bin=ui->lineEdit_path_to_lcnc_bin->text().toStdString();
-    std::string command="/bin/./halcmd setp trajectory.jog_euler_x_plus 0";
-    std::string result=path_to_lcnc_bin+command;
-    system(result.c_str());
-}
-
-void MainWindow::jog_euler_y_min_released(){
-    std::string path_to_lcnc_bin=ui->lineEdit_path_to_lcnc_bin->text().toStdString();
-    std::string command="/bin/./halcmd setp trajectory.jog_euler_y_min 0";
-    std::string result=path_to_lcnc_bin+command;
-    system(result.c_str());
-}
-
-void MainWindow::jog_euler_y_plus_released(){
-    std::string path_to_lcnc_bin=ui->lineEdit_path_to_lcnc_bin->text().toStdString();
-    std::string command="/bin/./halcmd setp trajectory.jog_euler_y_plus 0";
-    std::string result=path_to_lcnc_bin+command;
-    system(result.c_str());
-}
-
-void MainWindow::jog_euler_z_min_released(){
-    std::string path_to_lcnc_bin=ui->lineEdit_path_to_lcnc_bin->text().toStdString();
-    std::string command="/bin/./halcmd setp trajectory.jog_euler_z_min 0";
-    std::string result=path_to_lcnc_bin+command;
-    system(result.c_str());
-}
-
-void MainWindow::jog_euler_z_plus_released(){
-    std::string path_to_lcnc_bin=ui->lineEdit_path_to_lcnc_bin->text().toStdString();
-    std::string command="/bin/./halcmd setp trajectory.jog_euler_z_plus 0";
     std::string result=path_to_lcnc_bin+command;
     system(result.c_str());
 }

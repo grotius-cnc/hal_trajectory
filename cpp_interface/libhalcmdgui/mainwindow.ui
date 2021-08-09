@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>389</width>
-    <height>470</height>
+    <height>577</height>
    </rect>
   </property>
   <property name="palette">
@@ -237,96 +237,43 @@
    </palette>
   </property>
   <property name="windowTitle">
-   <string>MainWindow</string>
+   <string>- trajectory component halcmd test app -</string>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <layout class="QGridLayout" name="gridLayout_8">
-    <item row="2" column="0">
-     <layout class="QGridLayout" name="gridLayout_5">
-      <item row="1" column="1">
-       <widget class="QPushButton" name="pushButton_mode_jog">
-        <property name="text">
-         <string>mode jog</string>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="1">
-       <widget class="QPushButton" name="pushButton_mode_auto">
-        <property name="text">
-         <string>mode auto</string>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="1">
-       <widget class="QPushButton" name="pushButton_mode_mdi">
-        <property name="text">
-         <string>mode mdi</string>
-        </property>
-       </widget>
-      </item>
+   <layout class="QGridLayout" name="gridLayout_9">
+    <item row="1" column="0">
+     <layout class="QGridLayout" name="gridLayout_6">
       <item row="0" column="0">
-       <widget class="QPushButton" name="pushButton_load_gcode_file">
+       <widget class="QPushButton" name="pushButton_mode_auto_start">
         <property name="text">
-         <string>load gcode file</string>
+         <string>start - resume</string>
         </property>
        </widget>
       </item>
-     </layout>
-    </item>
-    <item row="5" column="0">
-     <layout class="QGridLayout" name="gridLayout_4">
-      <item row="0" column="0">
-       <widget class="QLabel" name="label_2">
+      <item row="1" column="0" colspan="2">
+       <widget class="QPushButton" name="pushButton_run_from_line">
         <property name="text">
-         <string>tool offset x</string>
+         <string>Run from line</string>
         </property>
        </widget>
       </item>
-      <item row="0" column="1">
-       <widget class="QLineEdit" name="lineEdit_tooloffset_x">
-        <property name="text">
-         <string>630</string>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="0">
-       <widget class="QLabel" name="label_3">
-        <property name="text">
-         <string>tool offset y</string>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="1">
-       <widget class="QLineEdit" name="lineEdit_tooloffset_y">
+      <item row="1" column="2" colspan="2">
+       <widget class="QLineEdit" name="lineEdit_run_from_line">
         <property name="text">
          <string>0</string>
         </property>
        </widget>
       </item>
-      <item row="2" column="0">
-       <widget class="QLabel" name="label_4">
+      <item row="0" column="2" colspan="2">
+       <widget class="QPushButton" name="pushButton_mode_auto_stop">
         <property name="text">
-         <string>tool offset z</string>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="1">
-       <widget class="QLineEdit" name="lineEdit_tooloffset_z">
-        <property name="text">
-         <string>500</string>
-        </property>
-       </widget>
-      </item>
-      <item row="3" column="1">
-       <widget class="QPushButton" name="pushButton_tooloffset">
-        <property name="text">
-         <string>set tooloffset</string>
+         <string>pause - stop</string>
         </property>
        </widget>
       </item>
      </layout>
     </item>
-    <item row="2" column="1" rowspan="2">
+    <item row="1" column="1" rowspan="2">
      <layout class="QGridLayout" name="gridLayout_2">
       <item row="0" column="0">
        <widget class="QPushButton" name="pushButton_m3_on">
@@ -386,71 +333,32 @@
       </item>
      </layout>
     </item>
-    <item row="0" column="0" colspan="2">
-     <layout class="QGridLayout" name="gridLayout_7">
-      <item row="0" column="0">
-       <widget class="QLabel" name="label">
-        <property name="text">
-         <string>Path to lcnc:</string>
-        </property>
-       </widget>
-      </item>
+    <item row="2" column="0">
+     <layout class="QGridLayout" name="gridLayout_5">
       <item row="0" column="1">
-       <widget class="QLineEdit" name="lineEdit_path_to_lcnc_bin">
+       <widget class="QPushButton" name="pushButton_mode_auto">
         <property name="text">
-         <string>/opt/linuxcnc</string>
+         <string>mode auto</string>
         </property>
        </widget>
       </item>
-     </layout>
-    </item>
-    <item row="1" column="0" colspan="2">
-     <layout class="QGridLayout" name="gridLayout_6">
       <item row="0" column="0">
-       <widget class="QPushButton" name="pushButton_mode_auto_start">
+       <widget class="QPushButton" name="pushButton_load_gcode_file">
         <property name="text">
-         <string>start</string>
+         <string>load gcode file</string>
         </property>
        </widget>
       </item>
-      <item row="0" column="1" colspan="2">
-       <widget class="QPushButton" name="pushButton_mode_auto_stop">
+      <item row="1" column="1">
+       <widget class="QPushButton" name="pushButton_mode_jog">
         <property name="text">
-         <string>stop</string>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="3">
-       <widget class="QPushButton" name="pushButton_mode_auto_pause">
-        <property name="text">
-         <string>pause</string>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="4">
-       <widget class="QPushButton" name="pushButton_mode_auto_resume">
-        <property name="text">
-         <string>resume</string>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="0" colspan="2">
-       <widget class="QPushButton" name="pushButton_run_from_line">
-        <property name="text">
-         <string>Run from line</string>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="2" colspan="2">
-       <widget class="QLineEdit" name="lineEdit_run_from_line">
-        <property name="text">
-         <string>0</string>
+         <string>mode jog</string>
         </property>
        </widget>
       </item>
      </layout>
     </item>
-    <item row="3" column="0" rowspan="2">
+    <item row="3" column="0">
      <layout class="QGridLayout" name="gridLayout_3">
       <item row="0" column="0">
        <widget class="QLabel" name="label_5">
@@ -462,7 +370,7 @@
       <item row="0" column="1">
        <widget class="QLineEdit" name="lineEdit_max_velocity">
         <property name="text">
-         <string>1400</string>
+         <string>100</string>
         </property>
        </widget>
       </item>
@@ -476,7 +384,7 @@
       <item row="1" column="1">
        <widget class="QLineEdit" name="lineEdit_max_acceleration">
         <property name="text">
-         <string>250</string>
+         <string>90</string>
         </property>
        </widget>
       </item>
@@ -490,7 +398,7 @@
       <item row="2" column="1">
        <widget class="QLineEdit" name="lineEdit_max_jerk">
         <property name="text">
-         <string>100</string>
+         <string>500</string>
         </property>
        </widget>
       </item>
@@ -503,33 +411,12 @@
       </item>
      </layout>
     </item>
-    <item row="4" column="1" rowspan="2">
+    <item row="3" column="1" rowspan="2">
      <layout class="QGridLayout" name="gridLayout">
       <item row="0" column="0">
        <widget class="QPushButton" name="pushButton_jog_x_min">
         <property name="text">
          <string>X-</string>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="1">
-       <widget class="QPushButton" name="pushButton_jog_x_plus">
-        <property name="text">
-         <string>X+</string>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="0">
-       <widget class="QPushButton" name="pushButton_jog_y_min">
-        <property name="text">
-         <string>Y-</string>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="1">
-       <widget class="QPushButton" name="pushButton_jog_y_plus">
-        <property name="text">
-         <string>Y+</string>
         </property>
        </widget>
       </item>
@@ -540,6 +427,13 @@
         </property>
        </widget>
       </item>
+      <item row="1" column="1">
+       <widget class="QPushButton" name="pushButton_jog_y_plus">
+        <property name="text">
+         <string>Y+</string>
+        </property>
+       </widget>
+      </item>
       <item row="2" column="1">
        <widget class="QPushButton" name="pushButton_jog_z_plus">
         <property name="text">
@@ -547,45 +441,122 @@
         </property>
        </widget>
       </item>
-      <item row="3" column="0">
-       <widget class="QPushButton" name="pushButton_jog_euler_x_min">
+      <item row="1" column="0">
+       <widget class="QPushButton" name="pushButton_jog_y_min">
         <property name="text">
-         <string>Euler X-</string>
+         <string>Y-</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QPushButton" name="pushButton_jog_x_plus">
+        <property name="text">
+         <string>X+</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </item>
+    <item row="4" column="0">
+     <layout class="QGridLayout" name="gridLayout_4">
+      <item row="0" column="0">
+       <widget class="QLabel" name="label_2">
+        <property name="text">
+         <string>tool offset x</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QLineEdit" name="lineEdit_tooloffset_x">
+        <property name="text">
+         <string>630</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="label_3">
+        <property name="text">
+         <string>tool offset y</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QLineEdit" name="lineEdit_tooloffset_y">
+        <property name="text">
+         <string>0</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="label_4">
+        <property name="text">
+         <string>tool offset z</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QLineEdit" name="lineEdit_tooloffset_z">
+        <property name="text">
+         <string>500</string>
         </property>
        </widget>
       </item>
       <item row="3" column="1">
-       <widget class="QPushButton" name="pushButton_jog_euler_x_plus">
+       <widget class="QPushButton" name="pushButton_tooloffset">
         <property name="text">
-         <string>Euler X+</string>
+         <string>set tooloffset</string>
         </property>
        </widget>
       </item>
-      <item row="4" column="0">
-       <widget class="QPushButton" name="pushButton_jog_euler_y_min">
+     </layout>
+    </item>
+    <item row="5" column="0" colspan="2">
+     <layout class="QGridLayout" name="gridLayout_8">
+      <item row="0" column="1">
+       <widget class="QPushButton" name="pushButton_load_mdi">
+        <property name="toolTip">
+         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;br/&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+        </property>
         <property name="text">
-         <string>Euler Y-</string>
+         <string>load mdi</string>
         </property>
        </widget>
       </item>
-      <item row="4" column="1">
-       <widget class="QPushButton" name="pushButton_jog_euler_y_plus">
+      <item row="0" column="0">
+       <widget class="QLabel" name="label_8">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
         <property name="text">
-         <string>Euler Y+</string>
+         <string>Mdi input</string>
         </property>
        </widget>
       </item>
-      <item row="5" column="0">
-       <widget class="QPushButton" name="pushButton_jog_euler_z_min">
+      <item row="1" column="0" colspan="2">
+       <widget class="QLineEdit" name="lineEdit_mdi">
         <property name="text">
-         <string>Euler Z-</string>
+         <string>G1 X100 Y100 Z50 F1400</string>
         </property>
        </widget>
       </item>
-      <item row="5" column="1">
-       <widget class="QPushButton" name="pushButton_jog_euler_z_plus">
+     </layout>
+    </item>
+    <item row="0" column="0" colspan="2">
+     <layout class="QGridLayout" name="gridLayout_7">
+      <item row="0" column="0">
+       <widget class="QLabel" name="label">
         <property name="text">
-         <string>Euler Z+</string>
+         <string>Path to lcnc:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QLineEdit" name="lineEdit_path_to_lcnc_bin">
+        <property name="text">
+         <string>/opt/linuxcnc</string>
         </property>
        </widget>
       </item>

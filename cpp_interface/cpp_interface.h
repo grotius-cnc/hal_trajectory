@@ -40,7 +40,9 @@ struct TCP {
     bool m3,m7,m8;
     double power_rpm;
 };
+// TCP tcp;
 
+TCP tcp;
 
 class CPP_INTERFACE_EXPORT Cpp_interface
 {
@@ -48,15 +50,21 @@ public:
     Cpp_interface();
 
     void load_gcode(char* name);
-    TCP trajectory_auto(double velocity_override,
-                        bool start, bool stop, bool pause, bool resume,
-                        double vel, double acc, double jerk,
-                        unsigned int startfromblock, double tcp_x, double tcp_y, double tcp_z);
-    TCP trajectory_jog(int jog_x, int jog_y, int jog_z,
-                       int jog_euler_x, int jog_euler_y, int jog_euler_z,
-                       double vel, double acc, double jerk,
-                       double tcp_x, double tcp_y, double tcp_z,
-                       double tcp_euler_x, double tcp_euler_y, double tcp_euler_z);
+    void trajectory_auto(double velocity_override,
+                        bool start, bool stop,
+                        double vel, double acc, double jerk, unsigned int startfromblock, bool run_from_line);
+
+    // Manual movements
+    void trajectory_jog(int jog_x, int jog_y, int jog_z,
+                       double vel, double acc, double jerk);
+
+    // This is a backend of the trajectory_auto function.
+    void trajectory_jog_auto(double x, double y, double z,
+                                      double vel, double acc, double jerk);
+
+private:
+    //! auto mode
+
 };
 
 #endif // CPP_INTERFACE_H
